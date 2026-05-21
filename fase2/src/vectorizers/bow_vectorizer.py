@@ -1,0 +1,32 @@
+from sklearn.feature_extraction.text import CountVectorizer
+from logger import setup_logger
+
+logger = setup_logger(__name__)
+
+
+class BowVectorizer:
+    def __init__(self, max_features=None, min_df=1):
+        self.max_features = max_features
+        self.min_df = min_df
+        self.vectorizer = None
+
+    def fit_transform(self, documents):
+        logger.info("Treinando BOW: max_features=%s, min_df=%s", self.max_features, self.min_df)
+        self.vectorizer = CountVectorizer(
+            max_features=self.max_features,
+            min_df=self.min_df,
+        )
+        matrix = self.vectorizer.fit_transform(documents)
+        logger.info("BOW treinado: vocab_size=%d, matrix_shape=%s",
+                     len(self.vectorizer.vocabulary_), matrix.shape)
+        return matrix
+
+    def transform(self, documents):
+        if self.vectorizer is None:
+            raise RuntimeError("BOW nao foi treinado. Execute fit_transform primeiro.")
+        return self.vectorizer.transform(documents)
+
+    def get_feature_names(self):
+        if self.vectorizer is None:
+            return []
+        return self.vectorizer.get_feature_names_out()
