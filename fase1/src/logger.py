@@ -1,5 +1,6 @@
 ﻿import io
 import logging
+import os
 import sys
 from fase1_config import LOG_FILE
 
@@ -15,6 +16,11 @@ def setup_logger(name="nlp_pipeline"):
         "[%(asctime)s] [%(levelname)s] %(message)s",
         datefmt="%Y-%m-%d %H:%M:%S",
     )
+
+    # Ensure the log directory exists
+    log_dir = os.path.dirname(LOG_FILE)
+    if log_dir and not os.path.exists(log_dir):
+        os.makedirs(log_dir, exist_ok=True)
 
     file_handler = logging.FileHandler(LOG_FILE, encoding="utf-8")
     file_handler.setLevel(logging.DEBUG)
