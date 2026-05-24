@@ -4,88 +4,91 @@ from collections import Counter
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
-from fase1_config import VOCAB_ANALYSIS_OUTPUT, OUTPUT_DIR
-from logger import setup_logger
+from fase1_config import CAMINHO_ANALISE_VOCABULARIO, DIRETORIO_SAIDA
+from logger import inicializar_sistema_log
 
-logger = setup_logger(__name__)
+logger = inicializar_sistema_log(__name__)
 
 
-def analyze_vocabulary(tokens_raw, tokens_filtered):
-    raw_words = [t["lemma"].lower() for t in tokens_raw if t["lemma"].strip()]
-    filtered_words = [t["lemma"].lower() for t in tokens_filtered if t["lemma"].strip()]
+def analisar_vocabulario(tokens_brutos, tokens_filtrados, caminho_saida=None):
+    if caminho_saida is None:
+        caminho_saida = CAMINHO_ANALISE_VOCABULARIO
 
-    raw_unique = set(raw_words)
-    filtered_unique = set(filtered_words)
+    palavras_brutas = [t["lema"].lower() for t in tokens_brutos if t["lema"].strip()]
+    palavras_filtradas = [t["lema"].lower() for t in tokens_filtrados if t["lema"].strip()]
 
-    raw_counter = Counter(raw_words)
-    filtered_counter = Counter(filtered_words)
+    vocabulario_bruto = set(palavras_brutas)
+    vocabulario_filtrado = set(palavras_filtradas)
 
-    reduction_pct = round(
-        (1 - len(filtered_unique) / len(raw_unique)) * 100, 2
-    ) if raw_unique else 0
+    contador_bruto = Counter(palavras_brutas)
+    contador_filtrado = Counter(palavras_filtradas)
 
-    analysis = {
-        "vocab_raw_count": len(raw_unique),
-        "vocab_filtered_count": len(filtered_unique),
-        "vocab_reduction_percent": reduction_pct,
-        "top_20_raw": raw_counter.most_common(20),
-        "top_20_filtered": filtered_counter.most_common(20),
-        "removed_words_sample": list(raw_unique - filtered_unique)[:50],
+    percentual_reducao = round(
+        (1 - len(vocabulario_filtrado) / len(vocabulario_bruto)) * 100, 2
+    ) if vocabulario_bruto else 0
+
+    analise = {
+        "quantidade_vocabulario_bruto": len(vocabulario_bruto),
+        "quantidade_vocabulario_filtrado": len(vocabulario_filtrado),
+        "percentual_reducao_vocabulario": percentual_reducao,
+        "top_20_bruto": contador_bruto.most_common(20),
+        "top_20_filtrado": contador_filtrado.most_common(20),
+        "amostra_palavras_removidas": list(vocabulario_bruto - vocabulario_filtrado)[:50],
     }
 
     logger.info("Analise de vocabulario: raw=%d, filtered=%d, reducao=%.2f%%",
-                analysis["vocab_raw_count"],
-                analysis["vocab_filtered_count"],
-                analysis["vocab_reduction_percent"])
+                analise["quantidade_vocabulario_bruto"],
+                analise["quantidade_vocabulario_filtrado"],
+                analise["percentual_reducao_vocabulario"])
 
-    with open(VOCAB_ANALYSIS_OUTPUT, "w", encoding="utf-8") as f:
-        json.dump(analysis, f, ensure_ascii=False, indent=2)
-    logger.info("Analise salva em: %s", VOCAB_ANALYSIS_OUTPUT)
+    with open(caminho_saida, "w", encoding="utf-8") as arquivo:
+        json.dump(analise, arquivo, ensure_ascii=False, indent=2)
+    logger.info("Analise salva em: %s", caminho_saida)
 
-    return analysis
+    return analise
 
 
-def plot_pos_distribution(df, output_path=None):
-    if output_path is None:
-        output_path = os.path.join(OUTPUT_DIR, "pos_distribution.png")
+def plotar_distribuicao_pos(dataframe, caminho_saida=None):
+    if caminho_saida is None:
+        caminho_saida = os.path.join(DIRETORIO_SAIDA, "pos_distribution.png")
 
-    pos_counts = df["pos"].value_counts()
+    contagem_pos = dataframe["pos"].value_counts()
 
     plt.figure(figsize=(12, 6))
-    pos_counts.plot(kind="bar", color="steelblue", edgecolor="black")
+    contagem_pos.plot(kind="bar", color="steelblue", edgecolor="black")
     plt.title("Distribuicao de POS Tags", fontsize=14)
     plt.xlabel("POS Tag", fontsize=12)
     plt.ylabel("Frequencia", fontsize=12)
     plt.xticks(rotation=45, ha="right")
     plt.tight_layout()
-    plt.savefig(output_path, dpi=150, bbox_inches="tight")
+    plt.savefig(caminho_saida, dpi=150, bbox_inches="tight")
     plt.close()
-    logger.info("Grafico de distribuicao POS salvo em: %s", output_path)
+    logger.info("Grafico de distribuicao POS salvo em: %s", caminho_saida)
 
-    return pos_counts.to_dict()
+    return contagem_pos.to_dict()
 
 
-def plot_frequency_comparison(raw_counter, filtered_counter, top_n=20, output_path=None):
-    if output_path is None:
-        output_path = os.path.join(OUTPUT_DIR, "freq_comparison.png")
+def plotar_comparacao_frequencia(contador_bruto, contador_filtrado, top_n=20, caminho_saida=None):
+    if caminho_saida is None:
+        caminho_saida = os.path.join(DIRETORIO_SAIDA, "freq_comparison.png")
 
-    raw_top = raw_counter.most_common(top_n)
-    filtered_top = filtered_counter.most_common(top_n)
+    top_bruto = contador_bruto.most_common(top_n)
+    top_filtrado = contador_filtrado.most_common(top_n)
 
-    raw_words, raw_counts = zip(*raw_top) if raw_top else ([], [])
-    filt_words, filt_counts = zip(*filtered_top) if filtered_top else ([], [])
+    palavras_brutas, contagens_brutas = zip(*top_bruto) if top_bruto else ([], [])
+    palavras_filtradas, contagens_filtradas = zip(*top_filtrado) if top_filtrado else ([], [])
 
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(16, 6))
 
-    ax1.barh(list(raw_words), list(raw_counts), color="steelblue")
+    ax1.barh(list(palavras_brutas), list(contagens_brutas), color="steelblue")
     ax1.set_title(f"Top {top_n} Palavras (Antes)", fontsize=12)
     ax1.invert_yaxis()
 
-    ax2.barh(list(filt_words), list(filt_counts), color="darkorange")
+    ax2.barh(list(palavras_filtradas), list(contagens_filtradas), color="darkorange")
     ax2.set_title(f"Top {top_n} Palavras (Depois)", fontsize=12)
     ax2.invert_yaxis()
 
     plt.tight_layout()
-    plt.savefig(output_path, dpi=150, bbox_inches="tight")
+    plt.savefig(caminho_saida, dpi=150, bbox_inches="tight")
     plt.close()
-    logger.info("Grafico comparativo de frequencia salvo em: %s", output_path)
+    logger.info("Grafico comparativo de frequencia salvo em: %s", caminho_saida)

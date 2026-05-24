@@ -4,10 +4,10 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(
 
 import numpy as np
 import pytest
-from similarity.cosine_search import CosineSearchEngine
+from similarity.cosine_search import MotorBuscaCosseno
 
 
-class TestCosineSearchEngine:
+class TestMotorBuscaCosseno:
     def test_fit_and_search(self):
         docs = ["ola mundo", "python programacao", "linguagem natural"]
         vectors = np.array([
@@ -15,7 +15,7 @@ class TestCosineSearchEngine:
             [0, 1, 1, 0],
             [0, 0, 0, 1],
         ])
-        engine = CosineSearchEngine("test", docs)
+        engine = MotorBuscaCosseno("test", docs)
         engine.fit(vectors)
 
         results = engine.search(np.array([1, 0, 0, 0]), top_k=2)
@@ -32,14 +32,14 @@ class TestCosineSearchEngine:
             [0, 0, 0, 1, 0],
             [0, 0, 0, 0, 1],
         ])
-        engine = CosineSearchEngine("test", docs)
+        engine = MotorBuscaCosseno("test", docs)
         engine.fit(vectors)
 
         results = engine.search(np.array([1, 1, 0, 0, 0]), top_k=5)
         assert len(results) == 5
 
     def test_search_empty_engine(self):
-        engine = CosineSearchEngine("test", ["doc1"])
+        engine = MotorBuscaCosseno("test", ["doc1"])
         results = engine.search(np.array([1, 0]), top_k=5)
         assert results == []
 
@@ -47,7 +47,7 @@ class TestCosineSearchEngine:
         long_doc = "a" * 300
         docs = [long_doc]
         vectors = np.array([[1, 0]])
-        engine = CosineSearchEngine("test", docs)
+        engine = MotorBuscaCosseno("test", docs)
         engine.fit(vectors)
 
         results = engine.search(np.array([1, 0]), top_k=1)

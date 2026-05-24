@@ -1,50 +1,62 @@
 ﻿import pandas as pd
-from preprocessing import get_nlp
-from fase1_config import BATCH_SIZE
-from logger import setup_logger
+from preprocessing import obter_instancia_nlp, aplicar_stemming
+from fase1_config import TAMANHO_LOTE
+from logger import inicializar_sistema_log
 
-logger = setup_logger(__name__)
+logger = inicializar_sistema_log(__name__)
 
 
-def process_articles_batch(articles):
-    nlp = get_nlp()
-    texts = [a["content"] for a in articles]
-    logger.info("Processando %d artigos em lote (batch_size=%d)...", len(texts), BATCH_SIZE)
+def processar_lote_artigos(artigos, metodo_processamento='none'):
+    nlp = obter_instancia_nlp()
+    textos = [artigo["conteudo"] for artigo in artigos]
+    logger.info(
+        "Processando %d artigos em lote (batch_size=%d, method=%s)...",
+        len(textos), TAMANHO_LOTE, metodo_processamento,
+    )
 
-    rows = []
+    linhas = []
 
-    for artigo_id, (article, doc) in enumerate(
-        zip(articles, nlp.pipe(texts, batch_size=BATCH_SIZE)), start=1
+    for id_artigo, (artigo, documento) in enumerate(
+        zip(artigos, nlp.pipe(textos, batch_size=TAMANHO_LOTE)), start=1
     ):
-        for token_id, token in enumerate(doc, start=1):
-            entity = ""
-            entity_label = ""
+        for id_token, token in enumerate(documento, start=1):
+            lema = token.lemma_
+            if metodo_processamento == 'lemmatizacao':
+                processado = lema
+            elif metodo_processamento == 'stemming':
+                processado = aplicar_stemming(lema)
+            else:
+                processado = token.text
+
+            entidade = ""
+            rotulo_entidade = ""
             if token.ent_iob_ == "B" or token.ent_iob_ == "I":
-                entity = token.ent_type_ or ""
-                entity_label = token.ent_type_ or ""
-            rows.append(
+                entidade = token.ent_type_ or ""
+                rotulo_entidade = token.ent_type_ or ""
+            linhas.append(
                 {
-                    "artigo_id": artigo_id,
-                    "token_id": token_id,
+                    "id_artigo": id_artigo,
+                    "id_token": id_token,
                     "token": token.text,
                     "pos": token.pos_,
                     "tag": token.tag_,
-                    "lemma": token.lemma_,
-                    "dep_rel": token.dep_,
-                    "head_token": token.head.text if token.head else "",
-                    "entity": entity,
-                    "entity_label": entity_label,
-                    "title": article["title"],
-                    "url": article["url"],
+                    "lema": lema,
+                    "processado": processado,
+                    "relacao_dependencia": token.dep_,
+                    "token_cabeca": token.head.text if token.head else "",
+                    "entidade": entidade,
+                    "rotulo_entidade": rotulo_entidade,
+                    "titulo": artigo["titulo"],
+                    "url": artigo["url"],
                 }
             )
         logger.info(
             "Artigo %d processado: '%s' -> %d tokens",
-            artigo_id,
-            article["title"],
-            token_id,
+            id_artigo,
+            artigo["titulo"],
+            id_token,
         )
 
-    df = pd.DataFrame(rows)
-    logger.info("DataFrame criado: %d linhas, %d colunas", len(df), len(df.columns))
-    return df
+    dataframe = pd.DataFrame(linhas)
+    logger.info("DataFrame criado: %d linhas, %d colunas", len(dataframe), len(dataframe.columns))
+    return dataframe

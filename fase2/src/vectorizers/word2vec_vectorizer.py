@@ -1,11 +1,11 @@
 import numpy as np
 from gensim.models import Word2Vec
-from logger import setup_logger
+from logger import inicializar_sistema_log
 
-logger = setup_logger(__name__)
+logger = inicializar_sistema_log(__name__)
 
 
-class Word2VecWrapper:
+class VetorizadorWord2Vec:
     def __init__(self, vector_size=100, window=5, min_count=1, epochs=30, seed=42):
         self.params = {
             "vector_size": vector_size,
@@ -37,7 +37,7 @@ class Word2VecWrapper:
         logger.info("Word2Vec treinado: vocab_size=%d, vector_size=%d", vocab_size, self.vector_size)
         return self
 
-    def get_sentence_vector(self, tokens):
+    def obter_vetor_sentenca(self, tokens):
         if self.model is None:
             return np.zeros(self.vector_size)
 
@@ -46,10 +46,10 @@ class Word2VecWrapper:
             return np.zeros(self.vector_size)
         return np.mean(vectors, axis=0)
 
-    def get_mean_document_embeddings(self, sentences):
+    def obter_embeddings_medios_documentos(self, sentences):
         embeddings = []
         for tokens in sentences:
-            vec = self.get_sentence_vector(tokens)
+            vec = self.obter_vetor_sentenca(tokens)
             embeddings.append(vec)
         result = np.array(embeddings)
         logger.info("Document embeddings gerados: shape=%s", result.shape)

@@ -28,7 +28,7 @@ fase1/
 │   ├── wordcloud_gen.py          # Geração de wordcloud
 │   └── vectorizers/              # (reservado para fase2)
 ├── output/                       # Resultados gerados
-│   ├── artigos_anotacao_lg.csv   # DataFrame com anotações
+│   ├── 100-artigos_anotacao_lg.parquet   # DataFrame com anotações
 │   ├── wordcloud.png            # Nuvem de palavras
 │   ├── pos_distribution.png     # Distribuição de POS tags
 │   ├── freq_comparison.png      # Comparativo de frequência
@@ -68,42 +68,45 @@ python main.py
 
 Ao executar `main.py`, o pipeline produz:
 
-### CSV com Anotações
-`output/artigos_anotacao_lg.csv` — DataFrame contendo:
-- `artigo_id`: ID único do artigo
-- `token_id`: Posição do token no artigo
+### Parquet com Anotações
+`output/100-artigos_anotacao_lg[_metodo].parquet` — DataFrame contendo:
+- `id_artigo`: ID único do artigo
+- `id_token`: Posição do token no artigo
 - `token`: Token original
 - `pos`: POS tag (NOUN, VERB, ADJ, etc.)
 - `tag`: Tag detalhada
-- `lemma`: Lema do token
-- `dep_rel`: Relação de dependência
-- `head_token`: Token cabeça na árvore de dependência
-- `entity`: Entidade nomeada (se aplicável)
-- `entity_label`: Tipo da entidade (PER, LOC, ORG, etc.)
-- `title`: Título do artigo
+- `lema`: Lema do token
+- `processado`: Token após método configurado (`none`, `lemmatizacao`, `stemming`)
+- `relacao_dependencia`: Relação de dependência
+- `token_cabeca`: Token cabeça na árvore de dependência
+- `entidade`: Entidade nomeada (se aplicável)
+- `rotulo_entidade`: Tipo da entidade (PER, LOC, ORG, etc.)
+- `titulo`: Título do artigo
 - `url`: URL do artigo
 
 ### Visualizações
-- `wordcloud.png` — Nuvem de palavras (sem stopwords)
-- `pos_distribution.png` — Gráfico de barras com distribuição de POS tags
-- `freq_comparison.png` — Comparativo de frequência antes/depois da remoção de stopwords
+- `wordcloud-100-artigos[_metodo].png` — Nuvem de palavras
+- `pos_distribution[_metodo].png` — Gráfico de barras com distribuição de POS tags
+- `freq_comparison[_metodo].png` — Comparativo de frequência antes/depois da remoção de stopwords
 
 ### Análise de Vocabulário
-`output/vocabulario_analise.json` — Métricas:
-- `vocab_raw_count`: Total de palavras únicas (com stopwords)
-- `vocab_filtered_count`: Total de palavras únicas (sem stopwords)
-- `vocab_reduction_percent`: Percentual de redução
-- `top_20_raw`: 20 palavras mais frequentes (com stopwords)
-- `top_20_filtered`: 20 palavras mais frequentes (sem stopwords)
+`output/vocabulario_analise-100-artigos[_metodo].json` — Métricas:
+- `quantidade_vocabulario_bruto`: Total de palavras únicas (com stopwords)
+- `quantidade_vocabulario_filtrado`: Total de palavras únicas (sem stopwords)
+- `percentual_reducao_vocabulario`: Percentual de redução
+- `top_20_bruto`: 20 palavras mais frequentes (com stopwords)
+- `top_20_filtrado`: 20 palavras mais frequentes (sem stopwords)
 
 ## Configuração
 
 As configurações estão em `src/fase1_config.py`:
 
 ```python
-SPACY_MODEL = "pt_core_news_lg"    # Modelo spaCy
-BATCH_SIZE = 10                     # Tamanho do batch para processamento
-SEED = 42                           # Semente para reprodutibilidade
+MODELO_SPACY = "pt_core_news_lg"              # Modelo spaCy
+TAMANHO_LOTE = 30                              # Tamanho do lote de processamento
+SEED_ALEATORIO = 42                            # Semente para reprodutibilidade
+METODOS_PROCESSAMENTO_TOKENS = ['lemmatizacao']
+STOPWORDS_EXTRAS = []
 ```
 
 ## Testes
@@ -128,26 +131,26 @@ import sys
 import os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "src"))
 
-from corpus_loader import load_articles
-from preprocessing import tokenize_article, get_stopwords
-from pos_tagger import process_articles_batch
+from corpus_loader import carregar_artigos
+from preprocessing import tokenizar_artigo, obter_stopwords
+from pos_tagger import processar_lote_artigos
 
 # Carregar artigos
-articles = load_articles()
+artigos = carregar_artigos()
 
 # Processar com spaCy (POS tagging completo)
-df = process_articles_batch(articles)
+dataframe = processar_lote_artigos(artigos, metodo_processamento="lemmatizacao")
 
 # Analisar vocabulário
-stopwords = get_stopwords()
-print(f"Total de stopwords: {len(stopwords)}")
+stopwords_atuais = obter_stopwords()
+print(f"Total de stopwords: {len(stopwords_atuais)}")
 
 # Salvar resultado
-df.to_csv("output/artigos_anotacao_lg.csv", index=False)
+dataframe.to_parquet("output/100-artigos_anotacao_lg.parquet", index=False)
 ```
 
 ## Notas
 
-- O modelo `pt_core_news_lg` é grande (~500MB). Na primeira execução, pode levar alguns minutos para下载.
-- O processamento em lote (`BATCH_SIZE`) otimiza o uso de memória.
-- A saída desta fase (`artigos_anotacao_lg.csv`) serve como entrada para a **Fase 2**.
+- O modelo `pt_core_news_lg` é grande (~500MB). Na primeira execução, pode levar alguns minutos para baixar.
+- O processamento em lote (`TAMANHO_LOTE`) otimiza o uso de memória.
+- A saída desta fase (`100-artigos_anotacao_lg.parquet`) serve como entrada para a **Fase 2**.

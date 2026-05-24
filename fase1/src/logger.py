@@ -2,11 +2,11 @@
 import logging
 import os
 import sys
-from fase1_config import LOG_FILE
+from fase1_config import CAMINHO_LOG
 
 
-def setup_logger(name="nlp_pipeline"):
-    logger = logging.getLogger(name)
+def inicializar_sistema_log(nome_logger="nlp_pipeline"):
+    logger = logging.getLogger(nome_logger)
     logger.setLevel(logging.DEBUG)
 
     if logger.handlers:
@@ -17,12 +17,12 @@ def setup_logger(name="nlp_pipeline"):
         datefmt="%Y-%m-%d %H:%M:%S",
     )
 
-    # Ensure the log directory exists
-    log_dir = os.path.dirname(LOG_FILE)
-    if log_dir and not os.path.exists(log_dir):
-        os.makedirs(log_dir, exist_ok=True)
+    # Garante que o diretorio de logs existe
+    diretorio_log = os.path.dirname(CAMINHO_LOG)
+    if diretorio_log and not os.path.exists(diretorio_log):
+        os.makedirs(diretorio_log, exist_ok=True)
 
-    file_handler = logging.FileHandler(LOG_FILE, encoding="utf-8")
+    file_handler = logging.FileHandler(CAMINHO_LOG, encoding="utf-8")
     file_handler.setLevel(logging.DEBUG)
     file_handler.setFormatter(formatter)
 

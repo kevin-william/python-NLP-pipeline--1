@@ -4,48 +4,97 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(
 
 import pytest
 from preprocessing import (
-    get_nlp,
-    get_stopwords,
-    add_custom_stopwords,
-    tokenize_article,
-    remove_stopwords_from_tokens,
+    obter_instancia_nlp,
+    obter_stopwords,
+    adicionar_stopwords_personalizadas,
+    aplicar_stemming,
+    tokenizar_artigo,
+    remover_stopwords_dos_tokens,
 )
 
 
-def test_get_nlp_returns_model():
-    nlp = get_nlp()
+def test_obter_instancia_nlp_retorna_modelo():
+    nlp = obter_instancia_nlp()
     assert nlp is not None
     assert nlp.lang == "pt"
 
 
-def test_get_stopwords_not_empty():
-    stopwords = get_stopwords()
-    assert len(stopwords) > 0
-    assert "de" in stopwords or "o" in stopwords or "a" in stopwords
+def test_obter_stopwords_nao_vazio():
+    stopwords_atuais = obter_stopwords()
+    assert len(stopwords_atuais) > 0
+    assert "de" in stopwords_atuais or "o" in stopwords_atuais or "a" in stopwords_atuais
 
 
-def test_add_custom_stopwords():
-    add_custom_stopwords(["palavrateste"])
-    stopwords = get_stopwords()
-    assert "palavrateste" in stopwords
+def test_adicionar_stopwords_personalizadas():
+    adicionar_stopwords_personalizadas(["palavrateste"])
+    stopwords_atuais = obter_stopwords()
+    assert "palavrateste" in stopwords_atuais
 
 
-def test_tokenize_article():
-    text = "O processamento de linguagem natural é fascinante."
-    result = tokenize_article(text)
-    assert "tokens" in result
-    assert "sentences" in result
-    assert len(result["tokens"]) > 0
-    assert len(result["sentences"]) > 0
-    token_keys = ["text", "lemma", "pos", "tag", "dep", "is_stop", "is_punct", "is_alpha"]
-    for key in token_keys:
-        assert key in result["tokens"][0]
+def test_aplicar_stemming_snowball():
+    resultado = aplicar_stemming("processamento", metodo='snowball')
+    assert isinstance(resultado, str)
+    assert len(resultado) > 0
+    assert len(resultado) <= len("processamento")
 
 
-def test_remove_stopwords_from_tokens():
-    text = "O processamento de linguagem natural é fascinante."
-    result = tokenize_article(text)
-    filtered = remove_stopwords_from_tokens(result["tokens"])
-    filtered_texts = [t["text"].lower() for t in filtered]
-    assert "o" not in filtered_texts or "de" not in filtered_texts
-    assert "processamento" in filtered_texts
+def test_aplicar_stemming_porter():
+    resultado = aplicar_stemming("processamento", metodo='porter')
+    assert isinstance(resultado, str)
+    assert len(resultado) > 0
+
+
+def test_tokenizar_artigo_none():
+    texto = "O processamento de linguagem natural é fascinante."
+    resultado = tokenizar_artigo(texto, metodo_processamento='none')
+    assert "tokens" in resultado
+    assert "sentencas" in resultado
+    assert len(resultado["tokens"]) > 0
+    chaves_token = [
+        "texto", "lema", "processado", "pos", "tag", "dependencia",
+        "eh_stopword", "eh_pontuacao", "eh_alfabetico"
+    ]
+    for chave in chaves_token:
+        assert chave in resultado["tokens"][0], f"Campo '{chave}' ausente"
+    primeiro_token = resultado["tokens"][0]
+    assert primeiro_token["processado"] == primeiro_token["texto"]
+
+
+def test_tokenizar_artigo_lemmatizacao():
+    texto = "Os computadores processam dados rapidamente."
+    resultado = tokenizar_artigo(texto, metodo_processamento='lemmatizacao')
+    tokens = resultado["tokens"]
+    for token in tokens:
+        assert token["processado"] == token["lema"]
+
+
+def test_tokenizar_artigo_stemming():
+    texto = "O processamento de linguagem natural é fascinante."
+    resultado = tokenizar_artigo(texto, metodo_processamento='stemming')
+    tokens = resultado["tokens"]
+    for token in tokens:
+        assert isinstance(token["processado"], str)
+        assert len(token["processado"]) > 0
+    houve_mudanca = any(
+        token["processado"] != token["lema"] for token in tokens if token["eh_alfabetico"]
+    )
+    assert houve_mudanca, "Stemming deveria alterar ao menos um token"
+
+
+def test_tokenizar_artigo_compatibilidade_retroativa():
+    """tokenizar_artigo sem argumento deve funcionar como antes (metodo_processamento='none')."""
+    texto = "O processamento de linguagem natural é fascinante."
+    resultado = tokenizar_artigo(texto)
+    assert "tokens" in resultado
+    assert "sentencas" in resultado
+
+
+def test_remover_stopwords_dos_tokens():
+    texto = "O processamento de linguagem natural é fascinante."
+    resultado = tokenizar_artigo(texto, metodo_processamento='lemmatizacao')
+    tokens_filtrados = remover_stopwords_dos_tokens(resultado["tokens"])
+    processados = [token["processado"].lower() for token in tokens_filtrados]
+    assert "o" not in processados
+    assert "de" not in processados
+    assert "processamento" in processados or "processar" in processados
+

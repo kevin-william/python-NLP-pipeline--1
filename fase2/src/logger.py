@@ -1,11 +1,11 @@
 ﻿import io
 import logging
 import sys
-from fase2_config import LOG_FILE
+from fase2_config import CAMINHO_LOG
 
 
-def setup_logger(name="fase2_pipeline"):
-    logger = logging.getLogger(name)
+def inicializar_sistema_log(nome_logger="fase2_pipeline"):
+    logger = logging.getLogger(nome_logger)
     logger.setLevel(logging.DEBUG)
 
     if logger.handlers:
@@ -16,7 +16,7 @@ def setup_logger(name="fase2_pipeline"):
         datefmt="%Y-%m-%d %H:%M:%S",
     )
 
-    file_handler = logging.FileHandler(LOG_FILE, encoding="utf-8")
+    file_handler = logging.FileHandler(CAMINHO_LOG, encoding="utf-8")
     file_handler.setLevel(logging.DEBUG)
     file_handler.setFormatter(formatter)
 

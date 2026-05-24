@@ -1,84 +1,136 @@
 ﻿import sys
 import os
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-sys.path.insert(0, BASE_DIR)
+DIRETORIO_SCRIPT = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, DIRETORIO_SCRIPT)
 
 from collections import Counter
-from fase1_config import CSV_OUTPUT, WORDCLOUD_OUTPUT, OUTPUT_DIR
-from logger import setup_logger
-from corpus_loader import load_articles, get_corpus_statistics
-from preprocessing import get_stopwords, add_custom_stopwords
-from pos_tagger import process_articles_batch
-from wordcloud_gen import generate_wordcloud
+from fase1_config import (
+    CAMINHO_PARQUET_SAIDA,
+    CAMINHO_NUVEM_PALAVRAS,
+    CAMINHO_ANALISE_VOCABULARIO,
+    DIRETORIO_SAIDA,
+    METODOS_PROCESSAMENTO_TOKENS,
+)
+from logger import inicializar_sistema_log
+from corpus_loader import carregar_artigos, obter_estatisticas_corpus
+from preprocessing import obter_stopwords
+from pos_tagger import processar_lote_artigos
+from wordcloud_gen import gerar_nuvem_palavras
 from vocab_analysis import (
-    analyze_vocabulary,
-    plot_pos_distribution,
-    plot_frequency_comparison,
+    analisar_vocabulario,
+    plotar_distribuicao_pos,
+    plotar_comparacao_frequencia,
 )
 
-os.makedirs(OUTPUT_DIR, exist_ok=True)
+os.makedirs(DIRETORIO_SAIDA, exist_ok=True)
 
-logger = setup_logger("nlp_pipeline")
+logger = inicializar_sistema_log("nlp_pipeline")
 
 
-def main():
+def _construir_caminho_saida(caminho_base, sufixo_metodo, nova_extensao=None):
+    """Insere o sufixo do método antes da extensão do arquivo."""
+    raiz, extensao = os.path.splitext(caminho_base)
+    if nova_extensao is not None:
+        extensao = nova_extensao
+    return f"{raiz}{sufixo_metodo}{extensao}"
+
+
+def executar_pipeline_por_metodo(artigos, metodo):
+    """Executa a pipeline completa para um método de processamento específico."""
+    sufixo = f"_{metodo}" if metodo != 'lemmatizacao' else ""
+
+    logger.info("=" * 60)
+    logger.info("METODO DE PROCESSAMENTO: %s", metodo)
+    logger.info("=" * 60)
+
+    # Step 2: POS tagging com spaCy
+    logger.info("[ETAPA 2] POS Tagging com spaCy")
+    dataframe = processar_lote_artigos(artigos, metodo_processamento=metodo)
+
+    caminho_parquet = _construir_caminho_saida(CAMINHO_PARQUET_SAIDA, sufixo)
+    dataframe.to_parquet(caminho_parquet, index=False)
+    logger.info("DataFrame salvo: %s (Parquet)", caminho_parquet)
+
+    # Step 3: Remoção de stopwords + análise de vocabulário
+    logger.info("[ETAPA 3] Analise de vocabulario (stopwords)")
+    stopwords_atuais = obter_stopwords()
+    logger.info("Stopwords carregadas: %d palavras", len(stopwords_atuais))
+
+    todos_tokens = dataframe.to_dict("records")
+
+    def eh_nao_stopword(registro_token):
+        texto = str(registro_token.get("processado", registro_token.get("lema", ""))).lower()
+        pos = str(registro_token.get("pos", ""))
+        return texto not in stopwords_atuais and pos != "PUNCT" and texto.strip()
+
+    tokens_brutos_info = [
+        {
+            "texto": str(token.get("token", "")),
+            "lema": str(token.get("processado", token.get("lema", ""))),
+            "processado": str(token.get("processado", token.get("lema", token.get("token", "")))),
+            "pos": str(token.get("pos", "")),
+        }
+        for token in todos_tokens
+    ]
+    tokens_filtrados = [
+        {
+            "texto": str(token.get("token", "")),
+            "lema": str(token.get("processado", token.get("lema", ""))),
+            "processado": str(token.get("processado", token.get("lema", token.get("token", "")))),
+            "pos": str(token.get("pos", "")),
+        }
+        for token in todos_tokens
+        if eh_nao_stopword(token)
+    ]
+
+    contador_bruto = Counter(token["lema"].lower() for token in tokens_brutos_info if token["lema"].strip())
+    contador_filtrado = Counter(token["lema"].lower() for token in tokens_filtrados if token["lema"].strip())
+
+    caminho_vocabulario = _construir_caminho_saida(
+        CAMINHO_ANALISE_VOCABULARIO, sufixo
+    )
+    analisar_vocabulario(tokens_brutos_info, tokens_filtrados, caminho_saida=caminho_vocabulario)
+
+    # Step 4: Distribuição de POS Tags
+    logger.info("[ETAPA 4] Distribuicao de POS Tags")
+    caminho_saida_pos = _construir_caminho_saida(
+        os.path.join(DIRETORIO_SAIDA, "pos_distribution.png"), sufixo
+    )
+    plotar_distribuicao_pos(dataframe, caminho_saida=caminho_saida_pos)
+
+    # Step 5: Gráfico comparativo de frequência
+    logger.info("[ETAPA 5] Grafico comparativo de frequencia")
+    caminho_saida_frequencia = _construir_caminho_saida(
+        os.path.join(DIRETORIO_SAIDA, "freq_comparison.png"), sufixo
+    )
+    plotar_comparacao_frequencia(contador_bruto, contador_filtrado, caminho_saida=caminho_saida_frequencia)
+
+    # Step 6: WordCloud
+    logger.info("[ETAPA 6] Geracao de WordCloud")
+    caminho_saida_nuvem = _construir_caminho_saida(CAMINHO_NUVEM_PALAVRAS, sufixo)
+    caminho_saida_nuvem_filtrada = _construir_caminho_saida(CAMINHO_NUVEM_PALAVRAS, f"{sufixo}_filtered")
+    gerar_nuvem_palavras(tokens_filtrados, caminho_saida=caminho_saida_nuvem)
+    gerar_nuvem_palavras(tokens_filtrados, incluir_stopwords=False, caminho_saida=caminho_saida_nuvem_filtrada)
+
+    logger.info("Outputs gerados com sufixo '%s'", sufixo or "(nenhum)")
+
+
+def executar_pipeline_principal():
     logger.info("=" * 60)
     logger.info("INICIANDO PIPELINE DE NLP - Wikipedia Articles")
     logger.info("=" * 60)
 
-    # Step 1: Load corpus
+    # Step 1: Carregar corpus
     logger.info("[ETAPA 1] Carregamento e inspecao do corpus")
-    articles = load_articles()
-    stats = get_corpus_statistics(articles)
-    logger.info("Estatisticas: %s", stats)
+    artigos = carregar_artigos()
+    estatisticas = obter_estatisticas_corpus(artigos)
+    logger.info("Estatisticas: %s", estatisticas)
 
-    # Step 2: POS tagging with spaCy
-    logger.info("[ETAPA 2] POS Tagging com spaCy")
-    df = process_articles_batch(articles)
-    df.to_csv(CSV_OUTPUT, index=False, encoding="utf-8")
-    df.to_parquet(CSV_OUTPUT.replace(".csv", ".parquet"), index=False)
-    logger.info("DataFrame salvo: %s (CSV e Parquet)", CSV_OUTPUT)
-    logger.info("CSV exportado: %s", CSV_OUTPUT)
-
-    # Step 3: Stopword removal + vocabulary analysis
-    logger.info("[ETAPA 3] Analise de vocabulario (stopwords)")
-    stopwords = get_stopwords()
-    logger.info("Stopwords carregadas: %d palavras", len(stopwords))
-
-    all_tokens = df.to_dict("records")
-
-    def is_not_stop(token_row):
-        text = str(token_row.get("lemma", "")).lower()
-        pos = str(token_row.get("pos", ""))
-        return text not in stopwords and pos != "PUNCT" and text.strip()
-
-    tokens_raw_info = [
-        {"text": str(t.get("token", "")), "lemma": str(t.get("lemma", "")), "pos": str(t.get("pos", ""))}
-        for t in all_tokens
-    ]
-    tokens_filtered = [
-        {"text": str(t.get("token", "")), "lemma": str(t.get("lemma", "")), "pos": str(t.get("pos", ""))}
-        for t in all_tokens if is_not_stop(t)
-    ]
-
-    raw_counter = Counter(t["lemma"].lower() for t in tokens_raw_info if t["lemma"].strip())
-    filtered_counter = Counter(t["lemma"].lower() for t in tokens_filtered if t["lemma"].strip())
-
-    analyze_vocabulary(tokens_raw_info, tokens_filtered)
-
-    # Step 4: POS distribution
-    logger.info("[ETAPA 4] Distribuicao de POS Tags")
-    plot_pos_distribution(df)
-
-    # Step 5: Frequency comparison
-    logger.info("[ETAPA 5] Grafico comparativo de frequencia")
-    plot_frequency_comparison(raw_counter, filtered_counter)
-
-    # Step 6: WordCloud
-    logger.info("[ETAPA 6] Geracao de WordCloud")
-    generate_wordcloud(tokens_filtered)
-    generate_wordcloud(tokens_filtered, include_stopwords=False)
+    # Executar pipeline para cada método de processamento configurado
+    logger.info("Metodos de processamento: %s", METODOS_PROCESSAMENTO_TOKENS)
+    for metodo in METODOS_PROCESSAMENTO_TOKENS:
+        executar_pipeline_por_metodo(artigos, metodo)
 
     logger.info("=" * 60)
     logger.info("PIPELINE CONCLUIDO COM SUCESSO")
@@ -86,4 +138,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    executar_pipeline_principal()

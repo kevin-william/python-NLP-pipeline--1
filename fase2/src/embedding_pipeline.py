@@ -1,149 +1,149 @@
 import os
 import numpy as np
 import pandas as pd
-from logger import setup_logger
-from vectorizers.bow_vectorizer import BowVectorizer
-from vectorizers.tfidf_vectorizer import TfidfVectorizerWrapper
-from vectorizers.word2vec_vectorizer import Word2VecWrapper
-from similarity.cosine_search import CosineSearchEngine
-from visualization.tsne_plot import TSNEVisualizer
+from logger import inicializar_sistema_log
+from vectorizers.bow_vectorizer import VetorizadorBow
+from vectorizers.tfidf_vectorizer import VetorizadorTfidf
+from vectorizers.word2vec_vectorizer import VetorizadorWord2Vec
+from similarity.cosine_search import MotorBuscaCosseno
+from visualization.tsne_plot import VisualizadorTSNE
 
-logger = setup_logger(__name__)
+logger = inicializar_sistema_log(__name__)
 
 
-class EmbeddingPipeline:
-    def __init__(self, config, input_csv):
-        self.config = config
-        self.input_csv = input_csv
-        self.search_engines = {}
-        self.vectorizers = {}
-        self.documents = []
-        self.document_titles = []
-        self.tokenized_docs = []
+class PipelineEmbeddings:
+    def __init__(self, configuracoes, caminho_parquet_entrada):
+        self.configuracoes = configuracoes
+        self.caminho_parquet_entrada = caminho_parquet_entrada
+        self.motores_busca = {}
+        self.vetorizadores = {}
+        self.documentos = []
+        self.titulos_documentos = []
+        self.documentos_tokenizados = []
 
-    def _load_and_prepare(self):
-        logger.info("Carregando dados de: %s", self.input_csv)
-        df = pd.read_csv(self.input_csv, encoding="utf-8")
-        logger.info("CSV carregado: %d linhas, %d colunas", len(df), len(df.columns))
+    def _carregar_e_preparar(self):
+        logger.info("Carregando dados de: %s", self.caminho_parquet_entrada)
+        dataframe = pd.read_parquet(self.caminho_parquet_entrada)
+        logger.info("Parquet carregado: %d linhas, %d colunas", len(dataframe), len(dataframe.columns))
 
-        grouped = df.groupby("artigo_id")
+        agrupado = dataframe.groupby("id_artigo")
 
-        for artigo_id, group in grouped:
-            title = str(group["title"].iloc[0])
-            lemmas = group["lemma"].dropna()
+        for _id_artigo, grupo in agrupado:
+            titulo = str(grupo["titulo"].iloc[0])
+            lemas = grupo["lema"].dropna()
 
-            filtered_tokens = []
-            for idx, lemma_series in lemmas.items():
-                lemma = str(lemma_series).strip().lower()
-                pos = str(group.loc[idx, "pos"]) if idx in group.index else ""
-                if lemma and pos != "PUNCT":
-                    filtered_tokens.append(lemma)
+            tokens_filtrados = []
+            for indice, lema_serie in lemas.items():
+                lema = str(lema_serie).strip().lower()
+                pos = str(grupo.loc[indice, "pos"]) if indice in grupo.index else ""
+                if lema and pos != "PUNCT":
+                    tokens_filtrados.append(lema)
 
-            doc_text = " ".join(filtered_tokens)
-            self.documents.append(doc_text)
-            self.document_titles.append(title)
-            self.tokenized_docs.append(filtered_tokens)
+            texto_documento = " ".join(tokens_filtrados)
+            self.documentos.append(texto_documento)
+            self.titulos_documentos.append(titulo)
+            self.documentos_tokenizados.append(tokens_filtrados)
 
-        logger.info("Documentos preparados: %d artigos", len(self.documents))
+        logger.info("Documentos preparados: %d artigos", len(self.documentos))
         return self
 
-    def run(self):
-        self._load_and_prepare()
+    def executar(self):
+        self._carregar_e_preparar()
 
-        methods = self.config["EMBEDDING_METHODS"]
-        logger.info("Metodos configurados: %s", methods)
+        metodos = self.configuracoes["METODOS_EMBEDDING"]
+        logger.info("Metodos configurados: %s", metodos)
 
-        for method in methods:
-            logger.info("--- Treinando metodo: %s ---", method)
-            engine = None
-            vectorizer = None
+        for metodo in metodos:
+            logger.info("--- Treinando metodo: %s ---", metodo)
+            motor = None
+            vetorizador = None
 
-            if method == "bow":
-                engine, vectorizer = self._train_bow()
-            elif method == "tfidf":
-                engine, vectorizer = self._train_tfidf()
-            elif method == "word2vec":
-                engine, vectorizer = self._train_word2vec()
+            if metodo == "bow":
+                motor, vetorizador = self._treinar_bow()
+            elif metodo == "tfidf":
+                motor, vetorizador = self._treinar_tfidf()
+            elif metodo == "word2vec":
+                motor, vetorizador = self._treinar_word2vec()
             else:
-                logger.warning("Metodo desconhecido: %s", method)
+                logger.warning("Metodo desconhecido: %s", metodo)
                 continue
 
-            if engine and vectorizer:
-                self.search_engines[method] = engine
-                self.vectorizers[method] = vectorizer
+            if motor and vetorizador:
+                self.motores_busca[metodo] = motor
+                self.vetorizadores[metodo] = vetorizador
 
-        if self.config.get("ENABLE_TSNE", False):
-            self._run_tsne()
+        if self.configuracoes.get("HABILITAR_TSNE", False):
+            self._executar_tsne()
 
-        logger.info("Treinamento concluido. %d search engines disponiveis.", len(self.search_engines))
-        return self.search_engines
+        logger.info("Treinamento concluido. %d search engines disponiveis.", len(self.motores_busca))
+        return self.motores_busca
 
-    def _train_bow(self):
-        params = self.config.get("BOW_PARAMS", {})
-        vectorizer = BowVectorizer(**params)
-        doc_vectors = vectorizer.fit_transform(self.documents)
-        engine = CosineSearchEngine("bow", self.documents)
-        engine.fit(doc_vectors)
-        return engine, vectorizer
+    def _treinar_bow(self):
+        params = self.configuracoes.get("PARAMS_BOW", {})
+        vetorizador = VetorizadorBow(**params)
+        vetores_documentos = vetorizador.fit_transform(self.documentos)
+        motor = MotorBuscaCosseno("bow", self.documentos)
+        motor.fit(vetores_documentos)
+        return motor, vetorizador
 
-    def _train_tfidf(self):
-        params = self.config.get("TFIDF_PARAMS", {})
-        vectorizer = TfidfVectorizerWrapper(**params)
-        doc_vectors = vectorizer.fit_transform(self.documents)
-        engine = CosineSearchEngine("tfidf", self.documents)
-        engine.fit(doc_vectors)
-        return engine, vectorizer
+    def _treinar_tfidf(self):
+        params = self.configuracoes.get("PARAMS_TFIDF", {})
+        vetorizador = VetorizadorTfidf(**params)
+        vetores_documentos = vetorizador.fit_transform(self.documentos)
+        motor = MotorBuscaCosseno("tfidf", self.documentos)
+        motor.fit(vetores_documentos)
+        return motor, vetorizador
 
-    def _train_word2vec(self):
-        params = self.config.get("WORD2VEC_PARAMS", {})
-        model = Word2VecWrapper(**params)
-        model.fit(self.tokenized_docs)
-        doc_vectors = model.get_mean_document_embeddings(self.tokenized_docs)
-        engine = CosineSearchEngine("word2vec", self.documents)
-        engine.fit(doc_vectors)
-        return engine, model
+    def _treinar_word2vec(self):
+        params = self.configuracoes.get("PARAMS_WORD2VEC", {})
+        modelo = VetorizadorWord2Vec(**params)
+        modelo.fit(self.documentos_tokenizados)
+        vetores_documentos = modelo.obter_embeddings_medios_documentos(self.documentos_tokenizados)
+        motor = MotorBuscaCosseno("word2vec", self.documentos)
+        motor.fit(vetores_documentos)
+        return motor, modelo
 
-    def _run_tsne(self):
-        if not self.search_engines:
+    def _executar_tsne(self):
+        if not self.motores_busca:
             logger.warning("Nenhum search engine para t-SNE")
             return
 
-        first_method = list(self.search_engines.keys())[0]
-        engine = self.search_engines[first_method]
-        vectors = engine.doc_vectors
+        primeiro_metodo = list(self.motores_busca.keys())[0]
+        motor = self.motores_busca[primeiro_metodo]
+        vetores = motor.doc_vectors
 
-        if hasattr(vectors, "toarray"):
-            vectors = vectors.toarray()
-        if not isinstance(vectors, np.ndarray):
-            vectors = np.array(vectors)
+        if hasattr(vetores, "toarray"):
+            vetores = vetores.toarray()
+        if not isinstance(vetores, np.ndarray):
+            vetores = np.array(vetores)
 
-        tsne_params = self.config.get("TSNE_PARAMS", {})
-        tsne_plot_params = self.config.get("TSNE_PLOT_PARAMS", {})
-        tsne_output = self.config.get("TSNE_OUTPUT", os.path.join(
+        params_tsne = self.configuracoes.get("PARAMS_TSNE", {})
+        params_plot_tsne = self.configuracoes.get("PARAMS_PLOT_TSNE", {})
+        caminho_saida_tsne = self.configuracoes.get("CAMINHO_SAIDA_TSNE", os.path.join(
             os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "output", "tsne_plot.png"
         ))
 
-        visualizer = TSNEVisualizer(**tsne_params)
-        embeddings_2d = visualizer.fit_transform(vectors)
-        visualizer.plot(embeddings_2d, self.document_titles, tsne_output, first_method, **tsne_plot_params)
+        visualizador = VisualizadorTSNE(**params_tsne)
+        embeddings_2d = visualizador.fit_transform(vetores)
+        visualizador.plot(embeddings_2d, self.titulos_documentos, caminho_saida_tsne, primeiro_metodo, **params_plot_tsne)
 
-    def search_text(self, method, query_text, top_k=10):
-        if method not in self.search_engines:
-            logger.warning("Metodo '%s' nao disponivel", method)
+    def buscar_texto(self, metodo, texto_consulta, top_k=10):
+        if metodo not in self.motores_busca:
+            logger.warning("Metodo '%s' nao disponivel", metodo)
             return []
 
-        if method not in self.vectorizers:
-            logger.warning("Vectorizer para '%s' nao disponivel", method)
+        if metodo not in self.vetorizadores:
+            logger.warning("Vectorizer para '%s' nao disponivel", metodo)
             return []
 
-        vectorizer = self.vectorizers[method]
+        vetorizador = self.vetorizadores[metodo]
 
-        if method == "word2vec":
-            words = query_text.strip().lower().split()
-            query_vector = vectorizer.get_sentence_vector(words)
+        if metodo == "word2vec":
+            palavras = texto_consulta.strip().lower().split()
+            vetor_consulta = vetorizador.obter_vetor_sentenca(palavras)
         else:
-            query_vector = vectorizer.transform([query_text])
-            if hasattr(query_vector, "toarray"):
-                query_vector = query_vector.toarray().flatten()
+            vetor_consulta = vetorizador.transform([texto_consulta])
+            if hasattr(vetor_consulta, "toarray"):
+                vetor_consulta = vetor_consulta.toarray().flatten()
 
-        return self.search_engines[method].search(query_vector, top_k)
+        return self.motores_busca[metodo].search(vetor_consulta, top_k)

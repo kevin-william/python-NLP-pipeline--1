@@ -16,7 +16,7 @@ Pipeline para geração de embeddings de texto e busca textual por similaridade.
 ```
 fase2/
 ├── input/
-│   └── artigos_anotacao_lg.csv   # Saída da Fase 1 (obrigatório)
+│   └── artigos_anotacao_lg.parquet   # Saída da Fase 1 (obrigatório)
 ├── src/
 │   ├── main.py                   # Script principal
 │   ├── fase2_config.py           # Configurações
@@ -47,15 +47,15 @@ fase2/
 
 ### 1. Executar a Fase 1 Primeiro
 
-A Fase 2 depende do arquivo CSV gerado pela Fase 1:
+A Fase 2 depende do arquivo Parquet gerado pela Fase 1:
 
 ```bash
 # 1. Executar Fase 1
 cd fase1/src
 python main.py
 
-# 2. Copiar o CSV para a Fase 2 (se não foi feito automaticamente)
-copy fase1\output\artigos_anotacao_lg.csv fase2\input\
+# 2. Copiar o Parquet para a Fase 2 (se não foi feito automaticamente)
+copy fase1\output\100-artigos_anotacao_lg.parquet fase2\input\artigos_anotacao_lg.parquet
 ```
 
 ### Dependências
@@ -75,12 +75,12 @@ As configurações estão em `src/fase2_config.py`:
 
 ```python
 # Métodos a serem treinados (ordem importa!)
-EMBEDDING_METHODS = ["bow", "tfidf", "word2vec"]
+METODOS_EMBEDDING = ["bow", "tfidf", "word2vec"]
 
 # Parâmetros de cada método
-BOW_PARAMS = {"max_features": 5000, "min_df": 1}
-TFIDF_PARAMS = {"max_features": 5000, "min_df": 1, "norm": "l2"}
-WORD2VEC_PARAMS = {
+PARAMS_BOW = {"max_features": 5000, "min_df": 1}
+PARAMS_TFIDF = {"max_features": 5000, "min_df": 1, "norm": "l2"}
+PARAMS_WORD2VEC = {
     "vector_size": 100,
     "window": 5,
     "min_count": 1,
@@ -89,12 +89,12 @@ WORD2VEC_PARAMS = {
 }
 
 # Configurações de busca
-TOP_K_RESULTS = 10
+TOP_K_RESULTADOS = 10
 
 # Visualização t-SNE
-ENABLE_TSNE = True
-TSNE_PARAMS = {"n_components": 2, "perplexity": 30, "n_iter": 2000, "random_state": 42}
-TSNE_PLOT_PARAMS = {
+HABILITAR_TSNE = True
+PARAMS_TSNE = {"n_components": 2, "perplexity": 30, "n_iter": 2000, "random_state": 42}
+PARAMS_PLOT_TSNE = {
     "figsize": (16, 12),
     "dpi": 150,
     "marker_size": 50,
@@ -106,17 +106,17 @@ TSNE_PLOT_PARAMS = {
 
 **Usar apenas TF-IDF:**
 ```python
-EMBEDDING_METHODS = ["tfidf"]
+METODOS_EMBEDDING = ["tfidf"]
 ```
 
 **Usar Word2Vec + TF-IDF:**
 ```python
-EMBEDDING_METHODS = ["word2vec", "tfidf"]
+METODOS_EMBEDDING = ["word2vec", "tfidf"]
 ```
 
 **Aumentar dimensões do Word2Vec:**
 ```python
-WORD2VEC_PARAMS = {"vector_size": 200, "window": 5, "min_count": 2, "epochs": 50}
+PARAMS_WORD2VEC = {"vector_size": 200, "window": 5, "min_count": 2, "epochs": 50}
 ```
 
 ### Parâmetros do t-SNE
@@ -149,8 +149,8 @@ WORD2VEC_PARAMS = {"vector_size": 200, "window": 5, "min_count": 2, "epochs": 50
 
 Se a visualização estiver com pontos muito aglomerados, aumente `perplexity` e `figsize`:
 ```python
-TSNE_PARAMS = {"perplexity": 50, "n_iter": 3000, "random_state": 42}
-TSNE_PLOT_PARAMS = {"figsize": (20, 14), "dpi": 200, "marker_size": 40}
+PARAMS_TSNE = {"perplexity": 50, "n_iter": 3000, "random_state": 42}
+PARAMS_PLOT_TSNE = {"figsize": (20, 14), "dpi": 200, "marker_size": 40}
 ```
 
 ## Como Executar
@@ -162,8 +162,8 @@ python main.py
 
 ### O que acontece:
 
-1. **Carregamento**: O pipeline lê o CSV da Fase 1 (`input/artigos_anotacao_lg.csv`)
-2. **Pré-processamento**: Constrói documentos a partir dos lemmas (agrupados por artigo_id), remove pontuação
+1. **Carregamento**: O pipeline lê o Parquet da Fase 1 (`input/artigos_anotacao_lg.parquet`)
+2. **Pré-processamento**: Constrói documentos a partir dos lemas (agrupados por id_artigo), remove pontuação
 3. **Treinamento**: Treina cada método de embedding configurado
 4. **t-SNE**: Gera visualização 2D dos embeddings (se habilitado)
 5. **Interface de Busca**: Abre prompt interativo para consultas
@@ -232,37 +232,37 @@ import sys
 import os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "src"))
 
-from embedding_pipeline import EmbeddingPipeline
+from embedding_pipeline import PipelineEmbeddings
 from fase2_config import (
-    INPUT_CSV,
-    EMBEDDING_METHODS,
-    BOW_PARAMS,
-    TFIDF_PARAMS,
-    WORD2VEC_PARAMS,
-    TOP_K_RESULTS,
-    ENABLE_TSNE,
-    TSNE_PARAMS,
-    TSNE_PLOT_PARAMS,
+    CAMINHO_PARQUET_ENTRADA,
+    METODOS_EMBEDDING,
+    PARAMS_BOW,
+    PARAMS_TFIDF,
+    PARAMS_WORD2VEC,
+    TOP_K_RESULTADOS,
+    HABILITAR_TSNE,
+    PARAMS_TSNE,
+    PARAMS_PLOT_TSNE,
 )
 
 # Configuração
 config = {
-    "EMBEDDING_METHODS": EMBEDDING_METHODS,
-    "BOW_PARAMS": BOW_PARAMS,
-    "TFIDF_PARAMS": TFIDF_PARAMS,
-    "WORD2VEC_PARAMS": WORD2VEC_PARAMS,
-    "TOP_K_RESULTS": TOP_K_RESULTS,
-    "ENABLE_TSNE": ENABLE_TSNE,
-    "TSNE_PARAMS": TSNE_PARAMS,
-    "TSNE_PLOT_PARAMS": TSNE_PLOT_PARAMS,
+    "METODOS_EMBEDDING": METODOS_EMBEDDING,
+    "PARAMS_BOW": PARAMS_BOW,
+    "PARAMS_TFIDF": PARAMS_TFIDF,
+    "PARAMS_WORD2VEC": PARAMS_WORD2VEC,
+    "TOP_K_RESULTADOS": TOP_K_RESULTADOS,
+    "HABILITAR_TSNE": HABILITAR_TSNE,
+    "PARAMS_TSNE": PARAMS_TSNE,
+    "PARAMS_PLOT_TSNE": PARAMS_PLOT_TSNE,
 }
 
 # Criar e executar pipeline
-pipeline = EmbeddingPipeline(config, INPUT_CSV)
-search_engines = pipeline.run()
+pipeline = PipelineEmbeddings(config, CAMINHO_PARQUET_ENTRADA)
+search_engines = pipeline.executar()
 
 # Consulta via código
-results = pipeline.search_text("bow", "inteligencia artificial", top_k=5)
+results = pipeline.buscar_texto("bow", "inteligencia artificial", top_k=5)
 
 for r in results:
     print(f"Score: {r['score']:.4f} | Doc #{r['index']}")
@@ -313,7 +313,7 @@ Formato: `[TIMESTAMP] [LEVEL] [MODULE] message`
 Fase 1 Output                    Fase 2 Input                Fase 2 Output
 ┌─────────────────┐             ┌─────────────────┐          ┌─────────────────┐
 │ artigos_anotacao│ ─────────> │ artigos_anotacao│          │ tsne_plot.png   │
-│ _lg.csv         │            │ _lg.csv         │          │ fase2.log       │
+│ _lg.parquet     │            │ _lg.parquet     │          │ fase2.log       │
 │ (tokens+POS)    │            │ (tokens+POS)    │          │                 │
 └─────────────────┘            └─────────────────┘          └─────────────────┘
                                        │

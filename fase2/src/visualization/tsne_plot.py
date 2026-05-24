@@ -3,12 +3,12 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from sklearn.manifold import TSNE
-from logger import setup_logger
+from logger import inicializar_sistema_log
 
-logger = setup_logger(__name__)
+logger = inicializar_sistema_log(__name__)
 
 
-class TSNEVisualizer:
+class VisualizadorTSNE:
     def __init__(self, n_components=2, perplexity=5, n_iter=1000, random_state=42):
         self.perplexity = perplexity
         self.n_iter = n_iter

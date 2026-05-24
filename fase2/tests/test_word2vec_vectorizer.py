@@ -4,17 +4,17 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(
 
 import numpy as np
 import pytest
-from vectorizers.word2vec_vectorizer import Word2VecWrapper
+from vectorizers.word2vec_vectorizer import VetorizadorWord2Vec
 
 
-class TestWord2VecVectorizer:
+class TestVetorizadorWord2Vec:
     def test_fit_with_sentences(self):
         sentences = [
             ["ola", "mundo", "programacao"],
             ["python", "linguagem", "natural"],
             ["processamento", "texto", "python"],
         ]
-        w2v = Word2VecWrapper(vector_size=10, window=3, min_count=1, epochs=5, seed=42)
+        w2v = VetorizadorWord2Vec(vector_size=10, window=3, min_count=1, epochs=5, seed=42)
         w2v.fit(sentences)
         assert w2v.model is not None
 
@@ -24,17 +24,17 @@ class TestWord2VecVectorizer:
             ["python", "legal", "abc"],
             ["teste", "exemplo", "abc"],
         ]
-        w2v = Word2VecWrapper(vector_size=5, window=3, min_count=1, epochs=5, seed=42)
+        w2v = VetorizadorWord2Vec(vector_size=5, window=3, min_count=1, epochs=5, seed=42)
         w2v.fit(sentences)
-        vec = w2v.get_sentence_vector(["ola", "mundo"])
+        vec = w2v.obter_vetor_sentenca(["ola", "mundo"])
         assert isinstance(vec, np.ndarray)
         assert vec.shape == (5,)
 
     def test_get_sentence_vector_unknown_words(self):
         sentences = [["a", "b", "c"]]
-        w2v = Word2VecWrapper(vector_size=5)
+        w2v = VetorizadorWord2Vec(vector_size=5)
         w2v.fit(sentences)
-        vec = w2v.get_sentence_vector(["x", "y", "z"])
+        vec = w2v.obter_vetor_sentenca(["x", "y", "z"])
         assert isinstance(vec, np.ndarray)
         assert vec.shape == (5,)
         assert np.all(vec == 0)
@@ -45,13 +45,13 @@ class TestWord2VecVectorizer:
             ["python", "legal"],
             ["teste", "abc"],
         ]
-        w2v = Word2VecWrapper(vector_size=5, epochs=3, seed=42)
+        w2v = VetorizadorWord2Vec(vector_size=5, epochs=3, seed=42)
         w2v.fit(sentences)
-        embeddings = w2v.get_mean_document_embeddings(sentences)
+        embeddings = w2v.obter_embeddings_medios_documentos(sentences)
         assert embeddings.shape == (3, 5)
 
     def test_empty_sentences(self):
-        w2v = Word2VecWrapper(vector_size=5)
+        w2v = VetorizadorWord2Vec(vector_size=5)
         w2v.fit([])
-        vec = w2v.get_sentence_vector(["teste"])
+        vec = w2v.obter_vetor_sentenca(["teste"])
         assert np.all(vec == 0)

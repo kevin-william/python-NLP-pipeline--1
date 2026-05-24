@@ -2,61 +2,66 @@
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from wordcloud import WordCloud
-from preprocessing import get_stopwords
-from fase1_config import WORDCLOUD_OUTPUT
-from logger import setup_logger
+from preprocessing import obter_stopwords
+from fase1_config import CAMINHO_NUVEM_PALAVRAS
+from logger import inicializar_sistema_log
 
-logger = setup_logger(__name__)
+logger = inicializar_sistema_log(__name__)
 
 
-def generate_wordcloud(
+def gerar_nuvem_palavras(
     tokens,
-    width=1200,
-    height=600,
-    max_words=200,
-    colormap="viridis",
-    background_color="white",
-    include_stopwords=False,
-    output_path=None,
+    largura=1200,
+    altura=600,
+    maximo_palavras=200,
+    paleta_cores="viridis",
+    cor_fundo="white",
+    incluir_stopwords=False,
+    caminho_saida=None,
 ):
-    if output_path is None:
-        output_path = WORDCLOUD_OUTPUT
+    if caminho_saida is None:
+        caminho_saida = CAMINHO_NUVEM_PALAVRAS
 
-    if include_stopwords:
-        words_text = " ".join(t["text"] for t in tokens)
+    def _obter_texto_token(token):
+        return str(token.get("processado", token.get("lema", token.get("texto", token.get("text", "")))))
+
+    if incluir_stopwords:
+        texto_palavras = " ".join(
+            str(token.get("texto", token.get("text", ""))) for token in tokens
+        )
     else:
-        stopwords = get_stopwords()
-        words_text = " ".join(
-            t["lemma"] for t in tokens
-            if t["lemma"].lower() not in stopwords and t["lemma"].strip()
+        stopwords_atuais = obter_stopwords()
+        texto_palavras = " ".join(
+            texto_token for token in tokens
+            if (texto_token := _obter_texto_token(token)).lower() not in stopwords_atuais and texto_token.strip()
         )
 
-    if not words_text.strip():
+    if not texto_palavras.strip():
         logger.warning("Nenhum token para gerar wordcloud")
         return
 
-    wc = WordCloud(
+    nuvem = WordCloud(
         prefer_horizontal=1,
-        width=width,
-        height=height,
-        max_words=max_words,
-        colormap=colormap,
-        background_color=background_color,
-    ).generate(words_text)
+        width=largura,
+        height=altura,
+        max_words=maximo_palavras,
+        colormap=paleta_cores,
+        background_color=cor_fundo,
+    ).generate(texto_palavras)
 
     plt.figure(figsize=(16, 8))
-    plt.imshow(wc, interpolation="bilinear")
+    plt.imshow(nuvem, interpolation="bilinear")
     plt.axis("off")
     plt.tight_layout(pad=0)
-    plt.savefig(output_path, dpi=150, bbox_inches="tight")
+    plt.savefig(caminho_saida, dpi=150, bbox_inches="tight")
     plt.close()
-    logger.info("WordCloud salva em: %s", output_path)
+    logger.info("WordCloud salva em: %s", caminho_saida)
 
 
-def generate_wordcloud_by_pos(tokens, pos_filter, output_path=None):
-    if output_path is None:
-        output_path = WORDCLOUD_OUTPUT
+def gerar_nuvem_palavras_por_pos(tokens, filtro_pos, caminho_saida=None):
+    if caminho_saida is None:
+        caminho_saida = CAMINHO_NUVEM_PALAVRAS
 
-    filtered = [t for t in tokens if t.get("pos") == pos_filter]
-    logger.info("Gerando wordcloud para POS=%s (%d tokens)", pos_filter, len(filtered))
-    generate_wordcloud(filtered, output_path=output_path)
+    tokens_filtrados = [token for token in tokens if token.get("pos") == filtro_pos]
+    logger.info("Gerando wordcloud para POS=%s (%d tokens)", filtro_pos, len(tokens_filtrados))
+    gerar_nuvem_palavras(tokens_filtrados, caminho_saida=caminho_saida)

@@ -1,10 +1,10 @@
-from logger import setup_logger
+from logger import inicializar_sistema_log
 
-logger = setup_logger(__name__)
+logger = inicializar_sistema_log(__name__)
 
 
-def start_search_interface(pipeline):
-    methods = list(pipeline.search_engines.keys())
+def iniciar_interface_busca(pipeline):
+    methods = list(pipeline.motores_busca.keys())
     if not methods:
         print("[ERRO] Nenhum metodo de busca disponivel.")
         return
@@ -51,7 +51,7 @@ def start_search_interface(pipeline):
         print(f"\nBuscando com [{method}]: '{query}'")
         print("-" * 50)
 
-        results = pipeline.search_text(method, query, top_k=pipeline.config.get("TOP_K_RESULTS", 10))
+        results = pipeline.buscar_texto(method, query, top_k=pipeline.configuracoes.get("TOP_K_RESULTADOS", 10))
 
         if not results:
             print("  Nenhum resultado encontrado.")

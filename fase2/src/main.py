@@ -1,56 +1,56 @@
 ﻿import sys
 import os
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-sys.path.insert(0, BASE_DIR)
+DIRETORIO_SCRIPT = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, DIRETORIO_SCRIPT)
 
 from fase2_config import (
-    INPUT_CSV,
-    OUTPUT_DIR,
-    EMBEDDING_METHODS,
-    TOP_K_RESULTS,
-    BOW_PARAMS,
-    TFIDF_PARAMS,
-    WORD2VEC_PARAMS,
-    ENABLE_TSNE,
-    TSNE_PARAMS,
-    TSNE_PLOT_PARAMS,
-    TSNE_OUTPUT,
+    CAMINHO_PARQUET_ENTRADA,
+    DIRETORIO_SAIDA,
+    METODOS_EMBEDDING,
+    TOP_K_RESULTADOS,
+    PARAMS_BOW,
+    PARAMS_TFIDF,
+    PARAMS_WORD2VEC,
+    HABILITAR_TSNE,
+    PARAMS_TSNE,
+    PARAMS_PLOT_TSNE,
+    CAMINHO_SAIDA_TSNE,
 )
-from logger import setup_logger
-from embedding_pipeline import EmbeddingPipeline
-from search_interface import start_search_interface
+from logger import inicializar_sistema_log
+from embedding_pipeline import PipelineEmbeddings
+from search_interface import iniciar_interface_busca
 
-os.makedirs(OUTPUT_DIR, exist_ok=True)
+os.makedirs(DIRETORIO_SAIDA, exist_ok=True)
 
-logger = setup_logger("fase2")
+logger = inicializar_sistema_log("fase2")
 
 
-def main():
+def executar_fase2_principal():
     logger.info("=" * 60)
     logger.info("FASE 2: Token Embedding e Busca por Similaridade")
     logger.info("=" * 60)
 
-    config = {
-        "EMBEDDING_METHODS": EMBEDDING_METHODS,
-        "TOP_K_RESULTS": TOP_K_RESULTS,
-        "BOW_PARAMS": BOW_PARAMS,
-        "TFIDF_PARAMS": TFIDF_PARAMS,
-        "WORD2VEC_PARAMS": WORD2VEC_PARAMS,
-        "ENABLE_TSNE": ENABLE_TSNE,
-        "TSNE_PARAMS": TSNE_PARAMS,
-        "TSNE_PLOT_PARAMS": TSNE_PLOT_PARAMS,
-        "TSNE_OUTPUT": TSNE_OUTPUT,
+    configuracoes = {
+        "METODOS_EMBEDDING": METODOS_EMBEDDING,
+        "TOP_K_RESULTADOS": TOP_K_RESULTADOS,
+        "PARAMS_BOW": PARAMS_BOW,
+        "PARAMS_TFIDF": PARAMS_TFIDF,
+        "PARAMS_WORD2VEC": PARAMS_WORD2VEC,
+        "HABILITAR_TSNE": HABILITAR_TSNE,
+        "PARAMS_TSNE": PARAMS_TSNE,
+        "PARAMS_PLOT_TSNE": PARAMS_PLOT_TSNE,
+        "CAMINHO_SAIDA_TSNE": CAMINHO_SAIDA_TSNE,
     }
 
-    pipeline = EmbeddingPipeline(config, INPUT_CSV)
-    search_engines = pipeline.run()
+    pipeline = PipelineEmbeddings(configuracoes, CAMINHO_PARQUET_ENTRADA)
+    motores_busca = pipeline.executar()
 
-    if not search_engines:
+    if not motores_busca:
         logger.error("Nenhum search engine foi treinado. Verifique a configuracao.")
         return
 
-    start_search_interface(pipeline)
+    iniciar_interface_busca(pipeline)
 
     logger.info("=" * 60)
     logger.info("FASE 2 CONCLUIDA")
@@ -58,4 +58,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    executar_fase2_principal()

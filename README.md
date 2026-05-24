@@ -24,7 +24,7 @@ artigos_wikipedia.txt
         ▼
   [ FASE 1 ] ── POS Tagging, NER, WordCloud, Análise de Vocabulário
         │
-        │  artigos_anotacao_lg.csv
+      │  100-artigos_anotacao_lg.parquet
         ▼
   [ FASE 2 ] ── BOW / TF-IDF / Word2Vec + Busca por Similaridade (CLI)
         │
@@ -121,9 +121,10 @@ python main.py
 Edite `fase1/src/fase1_config.py` para ajustar o comportamento:
 
 ```python
-SPACY_MODEL = "pt_core_news_lg"   # modelo spaCy a usar
-BATCH_SIZE  = 10                   # artigos por lote (ajuste conforme RAM disponível)
-SEED        = 42                   # reprodutibilidade
+MODELO_SPACY = "pt_core_news_lg"            # modelo spaCy a usar
+TAMANHO_LOTE = 30                            # artigos por lote (ajuste conforme RAM disponível)
+SEED_ALEATORIO = 42                          # reprodutibilidade
+METODOS_PROCESSAMENTO_TOKENS = ["lemmatizacao", "stemming", "none"]
 ```
 
 ### Input
@@ -138,37 +139,38 @@ Todos os arquivos são salvos em `fase1/output/`:
 
 | Arquivo | Descrição |
 |---------|-----------|
-| `artigos_anotacao_lg.csv` | DataFrame com uma linha por token, colunas: `artigo_id`, `token_id`, `token`, `pos`, `tag`, `lemma`, `dep_rel`, `head_token`, `entity`, `entity_label`, `title`, `url` |
+| `100-artigos_anotacao_lg.parquet` | DataFrame com uma linha por token, colunas: `id_artigo`, `id_token`, `token`, `pos`, `tag`, `lema`, `processado`, `relacao_dependencia`, `token_cabeca`, `entidade`, `rotulo_entidade`, `titulo`, `url` |
 | `wordcloud.png` | Nuvem de palavras gerada a partir dos lemas (sem stopwords) |
 | `pos_distribution.png` | Gráfico de barras com a distribuição das POS tags no corpus |
 | `freq_comparison.png` | Comparativo das palavras mais frequentes antes e depois da filtragem de stopwords |
 | `vocabulario_analise.json` | Métricas de vocabulário: total de tokens, tokens únicos, redução percentual após filtragem |
 | `nlp_pipeline.log` | Log completo de execução com timestamps |
 
-### Colunas do CSV gerado
+### Colunas do Parquet gerado
 
 ```
-artigo_id   – índice do artigo (0-based)
-token_id    – posição do token no documento
+id_artigo   – índice do artigo (1-based)
+id_token    – posição do token no documento
 token       – texto original do token
 pos         – classe gramatical universal (NOUN, VERB, ADJ, ...)
 tag         – etiqueta morfológica detalhada
-lemma       – forma lematizada do token
-dep_rel     – relação de dependência sintática (nsubj, obj, ...)
-head_token  – token cabeça na árvore de dependência
-entity      – texto da entidade nomeada (vazio se não for entidade)
-entity_label– tipo da entidade (PER, ORG, LOC, DATE, ...)
-title       – título do artigo de origem
+lema        – forma lematizada do token
+processado  – token após método configurado (`none`, `lemmatizacao`, `stemming`)
+relacao_dependencia – relação de dependência sintática (nsubj, obj, ...)
+token_cabeca – token cabeça na árvore de dependência
+entidade    – texto da entidade nomeada (vazio se não for entidade)
+rotulo_entidade – tipo da entidade (PER, ORG, LOC, DATE, ...)
+titulo      – título do artigo de origem
 url         – URL do artigo de origem
 ```
 
 ### Stopwords customizadas
 
-Para adicionar palavras à lista de stopwords do modelo, use a função `add_custom_stopwords` de `fase1/src/preprocessing.py`:
+Para adicionar palavras à lista de stopwords do modelo, use a função `adicionar_stopwords_personalizadas` de `fase1/src/preprocessing.py`:
 
 ```python
-from preprocessing import add_custom_stopwords
-add_custom_stopwords(["exemplo", "palavra", "123"])
+from preprocessing import adicionar_stopwords_personalizadas
+adicionar_stopwords_personalizadas(["exemplo", "palavra", "123"])
 ```
 
 ---
@@ -191,13 +193,13 @@ Após o treinamento, o sistema gera uma visualização **t-SNE** dos embeddings 
 
 ### Pré-requisito
 
-A Fase 2 depende do output da Fase 1. Copie (ou mova) o CSV gerado:
+A Fase 2 depende do output da Fase 1. Copie (ou mova) o Parquet gerado:
 
 ```bash
 # Opção A: copiar manualmente
-copy fase1\output\artigos_anotacao_lg.csv fase2\input\
+copy fase1\output\100-artigos_anotacao_lg.parquet fase2\input\artigos_anotacao_lg.parquet
 
-# Opção B: o caminho padrão já aponta para fase2/input/artigos_anotacao_lg.csv
+# Opção B: o caminho padrão já aponta para fase2/input/artigos_anotacao_lg.parquet
 # — basta garantir que o arquivo está lá antes de rodar a Fase 2
 ```
 
@@ -209,9 +211,9 @@ python main.py
 ```
 
 O pipeline executa automaticamente:
-1. Carregamento e agrupamento do CSV por documento
-2. Treinamento dos vetorizadores configurados em `EMBEDDING_METHODS`
-3. Geração do gráfico t-SNE (se `ENABLE_TSNE = True`)
+1. Carregamento e agrupamento do Parquet por documento
+2. Treinamento dos vetorizadores configurados em `METODOS_EMBEDDING`
+3. Geração do gráfico t-SNE (se `HABILITAR_TSNE = True`)
 4. Abertura da interface de busca interativa
 
 ### Configuração
@@ -220,26 +222,26 @@ Edite `fase2/src/fase2_config.py` para controlar todos os aspectos da fase:
 
 ```python
 # Métodos a treinar — remova ou reordene conforme necessário
-EMBEDDING_METHODS = ["bow", "tfidf", "word2vec"]
+METODOS_EMBEDDING = ["bow", "tfidf", "word2vec"]
 
 # Número de resultados retornados por busca
-TOP_K_RESULTS = 10
+TOP_K_RESULTADOS = 10
 
 # Parâmetros do Bag-of-Words
-BOW_PARAMS = {
+PARAMS_BOW = {
     "max_features": 5000,
     "min_df": 1,
 }
 
 # Parâmetros do TF-IDF
-TFIDF_PARAMS = {
+PARAMS_TFIDF = {
     "max_features": 5000,
     "min_df": 1,
     "norm": "l2",
 }
 
 # Parâmetros do Word2Vec (Gensim)
-WORD2VEC_PARAMS = {
+PARAMS_WORD2VEC = {
     "vector_size": 100,
     "window": 5,
     "min_count": 1,
@@ -248,8 +250,8 @@ WORD2VEC_PARAMS = {
 }
 
 # Visualização t-SNE
-ENABLE_TSNE = True
-TSNE_PARAMS = {
+HABILITAR_TSNE = True
+PARAMS_TSNE = {
     "n_components": 2,
     "perplexity": 5,
     "n_iter": 1000,
@@ -261,7 +263,7 @@ TSNE_PARAMS = {
 
 | Arquivo | Descrição |
 |---------|-----------|
-| `fase2/input/artigos_anotacao_lg.csv` | CSV com anotações token-a-token gerado pela Fase 1 |
+| `fase2/input/artigos_anotacao_lg.parquet` | Parquet com anotações token-a-token gerado pela Fase 1 |
 
 ### Output
 
@@ -318,7 +320,7 @@ Encerrando busca...
 
 | Comando | Comportamento |
 |---------|--------------|
-| `<consulta>` | Busca com o primeiro método da lista (`EMBEDDING_METHODS[0]`) |
+| `<consulta>` | Busca com o primeiro método da lista (`METODOS_EMBEDDING[0]`) |
 | `<metodo> <consulta>` | Busca com o método especificado (`bow`, `tfidf` ou `word2vec`) |
 | `sair` | Encerra a interface |
 
@@ -367,7 +369,7 @@ python-NLP-pipeline-#1/
 │   ├── input/
 │   │   └── artigos_wikipedia.txt # corpus de entrada
 │   ├── output/                   # gerado após execução
-│   │   ├── artigos_anotacao_lg.csv
+│   │   ├── 100-artigos_anotacao_lg.parquet
 │   │   ├── wordcloud.png
 │   │   ├── pos_distribution.png
 │   │   ├── freq_comparison.png
@@ -391,7 +393,7 @@ python-NLP-pipeline-#1/
 ├── fase2/                        # Fase 2: Embeddings e Busca por Similaridade
 │   ├── requirements.txt
 │   ├── input/
-│   │   └── artigos_anotacao_lg.csv  # CSV da Fase 1
+│   │   └── artigos_anotacao_lg.parquet  # Parquet da Fase 1
 │   ├── output/                      # gerado após execução
 │   │   ├── tsne_plot.png
 │   │   └── fase2_pipeline.log

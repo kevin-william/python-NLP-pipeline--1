@@ -1,11 +1,11 @@
 import numpy as np
 from sklearn.metrics.pairwise import cosine_similarity
-from logger import setup_logger
+from logger import inicializar_sistema_log
 
-logger = setup_logger(__name__)
+logger = inicializar_sistema_log(__name__)
 
 
-class CosineSearchEngine:
+class MotorBuscaCosseno:
     def __init__(self, name, documents, document_ids=None):
         self.name = name
         self.documents = documents

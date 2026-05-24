@@ -2,21 +2,36 @@ import os
 import random
 import numpy as np
 
-SEED = 42
-random.seed(SEED)
-np.random.seed(SEED)
+SEED_ALEATORIO = 42
+random.seed(SEED_ALEATORIO)
+np.random.seed(SEED_ALEATORIO)
 
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+DIRETORIO_BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-INPUT_FILE = os.path.join(BASE_DIR, "input", "artigos_wikipedia.txt")
-OUTPUT_DIR = os.path.join(BASE_DIR, "output")
-LOG_FILE = os.path.join(OUTPUT_DIR, "nlp_pipeline.log")
-CSV_OUTPUT = os.path.join(OUTPUT_DIR, "artigos_anotacao_lg.csv")
-WORDCLOUD_OUTPUT = os.path.join(OUTPUT_DIR, "wordcloud.png")
-VOCAB_ANALYSIS_OUTPUT = os.path.join(OUTPUT_DIR, "vocabulario_analise.json")
+CAMINHO_ENTRADA = os.path.join(DIRETORIO_BASE, "input", "artigos_wikipedia_100_formatado.txt")
+DIRETORIO_SAIDA = os.path.join(DIRETORIO_BASE, "output")
+CAMINHO_LOG = os.path.join(DIRETORIO_SAIDA, "nlp_pipeline-100-artigos.log")
+CAMINHO_PARQUET_SAIDA = os.path.join(DIRETORIO_SAIDA, "100-artigos_anotacao_lg.parquet")
+CAMINHO_NUVEM_PALAVRAS = os.path.join(DIRETORIO_SAIDA, "wordcloud-100-artigos.png")
+CAMINHO_ANALISE_VOCABULARIO = os.path.join(DIRETORIO_SAIDA, "vocabulario_analise-100-artigos.json")
 
-SPACY_MODEL = "pt_core_news_lg"
-BATCH_SIZE = 10
+# CAMINHO_ENTRADA = os.path.join(DIRETORIO_BASE, "input", "artigos_wikipedia.txt")
+# DIRETORIO_SAIDA = os.path.join(DIRETORIO_BASE, "output")
+# CAMINHO_LOG = os.path.join(DIRETORIO_SAIDA, "nlp_pipeline.log")
+# CAMINHO_PARQUET_SAIDA = os.path.join(DIRETORIO_SAIDA, "anotacao_lg.parquet")
+# CAMINHO_NUVEM_PALAVRAS = os.path.join(DIRETORIO_SAIDA, "wordcloud.png")
+# CAMINHO_ANALISE_VOCABULARIO = os.path.join(DIRETORIO_SAIDA, "vocabulario_analise.json")
 
-ARTICLE_START_MARKER = "===== ARTICLE START ====="
-ARTICLE_END_MARKER = "===== ARTICLE END ====="
+MODELO_SPACY = "pt_core_news_lg"
+TAMANHO_LOTE = 5
+
+MARCADOR_INICIO_ARTIGO = "===== ARTICLE START ====="
+MARCADOR_FIM_ARTIGO = "===== ARTICLE END ====="
+
+# Métodos de processamento de tokens: 'none', 'lemmatizacao', 'stemming'
+# Pode ser uma lista com um ou múltiplos valores para execução sequencial
+METODOS_PROCESSAMENTO_TOKENS = ['lemmatizacao', 'stemming', 'none']
+
+# Stopwords extras a serem adicionadas às stopwords padrão do spaCy
+STOPWORDS_EXTRAS = []
+# STOPWORDS_EXTRAS = ['o', 'a', 'os', 'as', 'de', 'do', 'da', 'dos', 'das', 'em', 'no', 'na', 'nos', 'nas']

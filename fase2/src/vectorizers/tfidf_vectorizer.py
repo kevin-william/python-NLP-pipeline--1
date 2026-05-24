@@ -1,10 +1,10 @@
 from sklearn.feature_extraction.text import TfidfVectorizer
-from logger import setup_logger
+from logger import inicializar_sistema_log
 
-logger = setup_logger(__name__)
+logger = inicializar_sistema_log(__name__)
 
 
-class TfidfVectorizerWrapper:
+class VetorizadorTfidf:
     def __init__(self, max_features=None, min_df=1, norm="l2"):
         self.max_features = max_features
         self.min_df = min_df

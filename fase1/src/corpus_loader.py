@@ -1,22 +1,22 @@
 ﻿import re
-from fase1_config import INPUT_FILE, ARTICLE_START_MARKER, ARTICLE_END_MARKER
-from logger import setup_logger
+from fase1_config import CAMINHO_ENTRADA, MARCADOR_INICIO_ARTIGO, MARCADOR_FIM_ARTIGO
+from logger import inicializar_sistema_log
 
-logger = setup_logger(__name__)
+logger = inicializar_sistema_log(__name__)
 
 
-def load_articles(filepath=None):
-    if filepath is None:
-        filepath = INPUT_FILE
+def carregar_artigos(caminho_arquivo=None):
+    if caminho_arquivo is None:
+        caminho_arquivo = CAMINHO_ENTRADA
 
-    logger.info("Carregando artigos de: %s", filepath)
+    logger.info("Carregando artigos de: %s", caminho_arquivo)
 
-    with open(filepath, "r", encoding="utf-8") as f:
-        text = f.read()
+    with open(caminho_arquivo, "r", encoding="utf-8") as arquivo:
+        texto = arquivo.read()
 
-    articles = []
-    pattern = re.compile(
-        re.escape(ARTICLE_START_MARKER)
+    artigos = []
+    padrao = re.compile(
+        re.escape(MARCADOR_INICIO_ARTIGO)
         + r"\s*"
         + r"Title:\s*(.+?)$\s*"
         + r"URL:\s*(.+?)$\s*"
@@ -24,36 +24,36 @@ def load_articles(filepath=None):
         + r"\s*"
         + r"(.*?)"
         + r"\s*"
-        + re.escape(ARTICLE_END_MARKER),
+        + re.escape(MARCADOR_FIM_ARTIGO),
         re.MULTILINE | re.DOTALL,
     )
 
-    for match in pattern.finditer(text):
-        title = match.group(1).strip()
-        url = match.group(2).strip()
-        content = match.group(3).strip()
-        articles.append({"title": title, "url": url, "content": content})
-        logger.info("Artigo carregado: '%s' (%d chars)", title, len(content))
+    for correspondencia in padrao.finditer(texto):
+        titulo = correspondencia.group(1).strip()
+        url = correspondencia.group(2).strip()
+        conteudo = correspondencia.group(3).strip()
+        artigos.append({"titulo": titulo, "url": url, "conteudo": conteudo})
+        logger.info("Artigo carregado: '%s' (%d chars)", titulo, len(conteudo))
 
-    logger.info("Total de artigos carregados: %d", len(articles))
-    return articles
+    logger.info("Total de artigos carregados: %d", len(artigos))
+    return artigos
 
 
-def get_corpus_statistics(articles):
-    total = len(articles)
-    lengths = [len(a["content"]) for a in articles]
-    total_chars = sum(lengths)
-    avg_chars = total_chars / total if total > 0 else 0
-    min_chars = min(lengths) if lengths else 0
-    max_chars = max(lengths) if lengths else 0
+def obter_estatisticas_corpus(artigos):
+    total_artigos = len(artigos)
+    tamanhos = [len(artigo["conteudo"]) for artigo in artigos]
+    total_caracteres = sum(tamanhos)
+    media_caracteres = total_caracteres / total_artigos if total_artigos > 0 else 0
+    minimo_caracteres = min(tamanhos) if tamanhos else 0
+    maximo_caracteres = max(tamanhos) if tamanhos else 0
 
-    stats = {
-        "total_articles": total,
-        "total_characters": total_chars,
-        "avg_characters_per_article": round(avg_chars, 2),
-        "min_characters": min_chars,
-        "max_characters": max_chars,
+    estatisticas = {
+        "total_artigos": total_artigos,
+        "total_caracteres": total_caracteres,
+        "media_caracteres_por_artigo": round(media_caracteres, 2),
+        "minimo_caracteres": minimo_caracteres,
+        "maximo_caracteres": maximo_caracteres,
     }
 
-    logger.info("Estatisticas do corpus: %s", stats)
-    return stats
+    logger.info("Estatisticas do corpus: %s", estatisticas)
+    return estatisticas

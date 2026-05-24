@@ -3,34 +3,35 @@ import os
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "src"))
 
 import pytest
-from corpus_loader import load_articles, get_corpus_statistics
+from corpus_loader import carregar_artigos, obter_estatisticas_corpus
 
 
-def test_load_articles_count():
-    articles = load_articles()
-    assert len(articles) > 0, "Deveria carregar ao menos 1 artigo"
+def test_carregar_artigos_contagem():
+    artigos = carregar_artigos()
+    assert len(artigos) > 0, "Deveria carregar ao menos 1 artigo"
 
 
-def test_article_structure():
-    articles = load_articles()
-    for article in articles:
-        assert "title" in article
-        assert "url" in article
-        assert "content" in article
-        assert isinstance(article["title"], str) and len(article["title"]) > 0
-        assert isinstance(article["url"], str) and len(article["url"]) > 0
-        assert isinstance(article["content"], str)
+def test_estrutura_artigo():
+    artigos = carregar_artigos()
+    for artigo in artigos:
+        assert "titulo" in artigo
+        assert "url" in artigo
+        assert "conteudo" in artigo
+        assert isinstance(artigo["titulo"], str) and len(artigo["titulo"]) > 0
+        assert isinstance(artigo["url"], str) and len(artigo["url"]) > 0
+        assert isinstance(artigo["conteudo"], str)
 
 
-def test_article_titles():
-    articles = load_articles()
-    titles = [a["title"] for a in articles]
-    assert "Processamento de linguagem natural" in titles
+def test_titulos_artigos():
+    artigos = carregar_artigos()
+    titulos = [artigo["titulo"] for artigo in artigos]
+    assert len(titulos) > 0
+    assert any("Python" in titulo for titulo in titulos)
 
 
-def test_get_corpus_statistics():
-    articles = load_articles()
-    stats = get_corpus_statistics(articles)
-    assert stats["total_articles"] == len(articles)
-    assert stats["total_characters"] > 0
-    assert stats["avg_characters_per_article"] > 0
+def test_obter_estatisticas_corpus():
+    artigos = carregar_artigos()
+    estatisticas = obter_estatisticas_corpus(artigos)
+    assert estatisticas["total_artigos"] == len(artigos)
+    assert estatisticas["total_caracteres"] > 0
+    assert estatisticas["media_caracteres_por_artigo"] > 0
