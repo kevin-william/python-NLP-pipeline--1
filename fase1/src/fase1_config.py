@@ -35,3 +35,11 @@ METODOS_PROCESSAMENTO_TOKENS = ['lemmatizacao', 'stemming', 'none']
 # Stopwords extras a serem adicionadas às stopwords padrão do spaCy
 STOPWORDS_EXTRAS = []
 # STOPWORDS_EXTRAS = ['o', 'a', 'os', 'as', 'de', 'do', 'da', 'dos', 'das', 'em', 'no', 'na', 'nos', 'nas']
+
+# Tipos de tokenização a executar na pipeline (execução combinada com METODOS_PROCESSAMENTO_TOKENS)
+# Valores possíveis: 'palavra', 'bigrama', 'trigrama', 'sentenca'
+# Exemplo: ['palavra', 'bigrama'] gera uma execução completa para cada tipo
+TIPOS_TOKENIZACAO = ['palavra']
+
+# Filtro de tamanho mínimo: artigos com menos de N palavras são removidos antes do processamento
+MINIMO_PALAVRAS_ARTIGO = 40

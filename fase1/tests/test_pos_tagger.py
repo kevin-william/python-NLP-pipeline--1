@@ -29,6 +29,16 @@ def test_processar_lote_artigos():
     assert dataframe["url"].iloc[0] == "https://example.com"
 
 
+def test_coluna_tipo_tokenizacao_presente():
+    dataframe = processar_lote_artigos(_ARTIGOS)
+    assert "tipo_tokenizacao" in dataframe.columns
+
+
+def test_coluna_tipo_tokenizacao_valor_padrao():
+    dataframe = processar_lote_artigos(_ARTIGOS)
+    assert (dataframe["tipo_tokenizacao"] == "palavra").all()
+
+
 def test_coluna_processado_none():
     dataframe = processar_lote_artigos(_ARTIGOS, metodo_processamento='none')
     assert (dataframe["processado"] == dataframe["token"]).all(), \
@@ -75,4 +85,35 @@ def test_lema_presente():
     assert len(lemas) > 0
     lemas_minusculos = [lema.lower() for lema in lemas]
     assert any("computador" in lema for lema in lemas_minusculos)
+
+
+# ---------------------------------------------------------------------------
+# Testes de tipos de tokenização
+# ---------------------------------------------------------------------------
+
+def test_processar_lote_artigos_bigrama():
+    dataframe = processar_lote_artigos(_ARTIGOS, tipo_tokenizacao='bigrama')
+    assert len(dataframe) > 0
+    assert (dataframe["tipo_tokenizacao"] == "bigrama").all()
+    tokens_com_espaco = dataframe["token"].str.contains(" ")
+    assert tokens_com_espaco.any(), "Bigramas devem conter espaço entre os termos"
+
+
+def test_processar_lote_artigos_trigrama():
+    dataframe = processar_lote_artigos(_ARTIGOS, tipo_tokenizacao='trigrama')
+    assert len(dataframe) > 0
+    assert (dataframe["tipo_tokenizacao"] == "trigrama").all()
+
+
+def test_processar_lote_artigos_sentenca():
+    dataframe = processar_lote_artigos(_ARTIGOS, tipo_tokenizacao='sentenca')
+    assert len(dataframe) > 0
+    assert (dataframe["pos"] == "SENT").all()
+    assert (dataframe["tipo_tokenizacao"] == "sentenca").all()
+
+
+def test_processar_lote_artigos_tipo_desconhecido_usa_palavra():
+    dataframe = processar_lote_artigos(_ARTIGOS, tipo_tokenizacao='invalido')
+    assert len(dataframe) > 0
+    assert (dataframe["tipo_tokenizacao"] == "palavra").all()
 

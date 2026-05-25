@@ -11,9 +11,10 @@ from fase1_config import (
     CAMINHO_ANALISE_VOCABULARIO,
     DIRETORIO_SAIDA,
     METODOS_PROCESSAMENTO_TOKENS,
+    TIPOS_TOKENIZACAO,
 )
 from logger import inicializar_sistema_log
-from corpus_loader import carregar_artigos, obter_estatisticas_corpus
+from corpus_loader import carregar_artigos, obter_estatisticas_corpus, filtrar_artigos_por_tamanho
 from preprocessing import obter_stopwords
 from pos_tagger import processar_lote_artigos
 from wordcloud_gen import gerar_nuvem_palavras
@@ -36,17 +37,17 @@ def _construir_caminho_saida(caminho_base, sufixo_metodo, nova_extensao=None):
     return f"{raiz}{sufixo_metodo}{extensao}"
 
 
-def executar_pipeline_por_metodo(artigos, metodo):
-    """Executa a pipeline completa para um método de processamento específico."""
-    sufixo = f"_{metodo}" if metodo != 'lemmatizacao' else ""
+def executar_pipeline_por_metodo(artigos, metodo, tipo_tokenizacao='palavra'):
+    """Executa a pipeline completa para uma combinação de método e tipo de tokenização."""
+    sufixo = f"_{metodo}_{tipo_tokenizacao}"
 
     logger.info("=" * 60)
-    logger.info("METODO DE PROCESSAMENTO: %s", metodo)
+    logger.info("METODO: %s | TIPO DE TOKENIZACAO: %s", metodo, tipo_tokenizacao)
     logger.info("=" * 60)
 
-    # Step 2: POS tagging com spaCy
+    # Etapa 2: POS tagging com spaCy
     logger.info("[ETAPA 2] POS Tagging com spaCy")
-    dataframe = processar_lote_artigos(artigos, metodo_processamento=metodo)
+    dataframe = processar_lote_artigos(artigos, metodo_processamento=metodo, tipo_tokenizacao=tipo_tokenizacao)
 
     caminho_parquet = _construir_caminho_saida(CAMINHO_PARQUET_SAIDA, sufixo)
     dataframe.to_parquet(caminho_parquet, index=False)
@@ -113,7 +114,7 @@ def executar_pipeline_por_metodo(artigos, metodo):
     gerar_nuvem_palavras(tokens_filtrados, caminho_saida=caminho_saida_nuvem)
     gerar_nuvem_palavras(tokens_filtrados, incluir_stopwords=False, caminho_saida=caminho_saida_nuvem_filtrada)
 
-    logger.info("Outputs gerados com sufixo '%s'", sufixo or "(nenhum)")
+    logger.info("Outputs gerados com sufixo '%s'", sufixo)
 
 
 def executar_pipeline_principal():
@@ -121,16 +122,23 @@ def executar_pipeline_principal():
     logger.info("INICIANDO PIPELINE DE NLP - Wikipedia Articles")
     logger.info("=" * 60)
 
-    # Step 1: Carregar corpus
+    # Etapa 1: Carregar corpus
     logger.info("[ETAPA 1] Carregamento e inspecao do corpus")
     artigos = carregar_artigos()
     estatisticas = obter_estatisticas_corpus(artigos)
-    logger.info("Estatisticas: %s", estatisticas)
+    logger.info("Estatisticas iniciais: %s", estatisticas)
 
-    # Executar pipeline para cada método de processamento configurado
+    # Etapa 1b: Filtrar artigos muito curtos
+    logger.info("[ETAPA 1b] Filtrando artigos por tamanho minimo de palavras")
+    artigos, artigos_removidos = filtrar_artigos_por_tamanho(artigos)
+    logger.info("Artigos para processamento: %d", len(artigos))
+
+    # Executar pipeline para cada combinacao metodo x tipo de tokenizacao
     logger.info("Metodos de processamento: %s", METODOS_PROCESSAMENTO_TOKENS)
+    logger.info("Tipos de tokenizacao: %s", TIPOS_TOKENIZACAO)
     for metodo in METODOS_PROCESSAMENTO_TOKENS:
-        executar_pipeline_por_metodo(artigos, metodo)
+        for tipo in TIPOS_TOKENIZACAO:
+            executar_pipeline_por_metodo(artigos, metodo, tipo)
 
     logger.info("=" * 60)
     logger.info("PIPELINE CONCLUIDO COM SUCESSO")

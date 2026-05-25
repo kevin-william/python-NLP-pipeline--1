@@ -101,11 +101,15 @@ A Fase 1 processa o corpus bruto e produz um DataFrame anotado com informações
 | Etapa | Descrição |
 |-------|-----------|
 | **1. Carregamento** | Lê e parseia `artigos_wikipedia.txt`, extrai título, URL e conteúdo de cada artigo |
-| **2. POS Tagging** | Aplica o modelo `pt_core_news_lg` via `nlp.pipe()` em lotes de 10 artigos |
-| **3. Análise de Vocabulário** | Compara o vocabulário antes e depois da remoção de stopwords |
-| **4. Distribuição POS** | Gera gráfico de barras com a frequência de cada classe gramatical |
-| **5. Comparativo de Frequência** | Plota as top-N palavras com/sem stopwords |
-| **6. WordCloud** | Gera nuvem de palavras a partir dos lemas filtrados |
+| **1b. Filtro de tamanho** | Remove artigos com menos de `MINIMO_PALAVRAS_ARTIGO` palavras (padrão: 40); log indica quantos foram removidos |
+| **2. Normalização** | Aplica lowercase, remove caracteres especiais e excesso de espaços (acentos preservados) |
+| **3. POS Tagging** | Aplica o modelo `pt_core_news_lg` via `nlp.pipe()` em lotes, com tokenização por tipo configurado |
+| **4. Análise de Vocabulário** | Compara o vocabulário antes e depois da remoção de stopwords |
+| **5. Distribuição POS** | Gera gráfico de barras com a frequência de cada classe gramatical |
+| **6. Comparativo de Frequência** | Plota as top-N palavras com/sem stopwords |
+| **7. WordCloud** | Gera nuvem de palavras a partir dos lemas filtrados |
+
+A pipeline é executada de forma **combinada**: para cada item em `METODOS_PROCESSAMENTO_TOKENS` × cada item em `TIPOS_TOKENIZACAO`, uma execução completa é realizada e os artefatos são salvos com sufixo `_{metodo}_{tipo}`.
 
 ### Como executar
 
@@ -122,9 +126,12 @@ Edite `fase1/src/fase1_config.py` para ajustar o comportamento:
 
 ```python
 MODELO_SPACY = "pt_core_news_lg"            # modelo spaCy a usar
-TAMANHO_LOTE = 30                            # artigos por lote (ajuste conforme RAM disponível)
+TAMANHO_LOTE = 5                             # artigos por lote (ajuste conforme RAM disponível)
 SEED_ALEATORIO = 42                          # reprodutibilidade
 METODOS_PROCESSAMENTO_TOKENS = ["lemmatizacao", "stemming", "none"]
+TIPOS_TOKENIZACAO = ["palavra"]              # 'palavra', 'bigrama', 'trigrama', 'sentenca'
+MINIMO_PALAVRAS_ARTIGO = 40                  # artigos com menos palavras são removidos
+STOPWORDS_EXTRAS = []                        # stopwords adicionais além das do spaCy
 ```
 
 ### Input
@@ -135,29 +142,29 @@ METODOS_PROCESSAMENTO_TOKENS = ["lemmatizacao", "stemming", "none"]
 
 ### Output
 
-Todos os arquivos são salvos em `fase1/output/`:
+Todos os arquivos são salvos em `fase1/output/` com sufixo `_{metodo}_{tipo}` por combinação:
 
 | Arquivo | Descrição |
 |---------|-----------|
-| `100-artigos_anotacao_lg.parquet` | DataFrame com uma linha por token, colunas: `id_artigo`, `id_token`, `token`, `pos`, `tag`, `lema`, `processado`, `relacao_dependencia`, `token_cabeca`, `entidade`, `rotulo_entidade`, `titulo`, `url` |
-| `wordcloud.png` | Nuvem de palavras gerada a partir dos lemas (sem stopwords) |
-| `pos_distribution.png` | Gráfico de barras com a distribuição das POS tags no corpus |
-| `freq_comparison.png` | Comparativo das palavras mais frequentes antes e depois da filtragem de stopwords |
-| `vocabulario_analise.json` | Métricas de vocabulário: total de tokens, tokens únicos, redução percentual após filtragem |
+| `100-artigos_anotacao_lg_{metodo}_{tipo}.parquet` | DataFrame com uma linha por token/n-grama/sentença, incluindo coluna `tipo_tokenizacao` |
+| `wordcloud_{metodo}_{tipo}.png` | Nuvem de palavras gerada a partir dos lemas (sem stopwords) |
+| `pos_distribution_{metodo}_{tipo}.png` | Gráfico de barras com a distribuição das POS tags no corpus |
+| `freq_comparison_{metodo}_{tipo}.png` | Comparativo das palavras mais frequentes antes e depois da filtragem de stopwords |
+| `vocabulario_analise_{metodo}_{tipo}.json` | Métricas de vocabulário: total de tokens, tokens únicos, redução percentual após filtragem |
 | `nlp_pipeline.log` | Log completo de execução com timestamps |
 
 ### Colunas do Parquet gerado
 
 ```
-id_artigo   – índice do artigo (1-based)
-id_token    – posição do token no documento
-token       – texto original do token
-pos         – classe gramatical universal (NOUN, VERB, ADJ, ...)
-tag         – etiqueta morfológica detalhada
-lema        – forma lematizada do token
-processado  – token após método configurado (`none`, `lemmatizacao`, `stemming`)
+id_artigo         – índice do artigo (1-based)
+id_token          – posição do token no documento
+token             – texto original do token (ou n-grama/sentença)
+pos               – classe gramatical universal (NOUN, VERB, ADJ, ... | SENT para sentença)
+tag               – etiqueta morfológica detalhada
+lema              – forma lematizada do token
+processado        – token após método configurado (`none`, `lemmatizacao`, `stemming`)
 relacao_dependencia – relação de dependência sintática (nsubj, obj, ...)
-token_cabeca – token cabeça na árvore de dependência
+token_cabeca      – token cabeça na árvore de dependência
 entidade    – texto da entidade nomeada (vazio se não for entidade)
 rotulo_entidade – tipo da entidade (PER, ORG, LOC, DATE, ...)
 titulo      – título do artigo de origem

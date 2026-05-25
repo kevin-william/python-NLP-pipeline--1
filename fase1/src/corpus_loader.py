@@ -1,5 +1,5 @@
 ﻿import re
-from fase1_config import CAMINHO_ENTRADA, MARCADOR_INICIO_ARTIGO, MARCADOR_FIM_ARTIGO
+from fase1_config import CAMINHO_ENTRADA, MARCADOR_INICIO_ARTIGO, MARCADOR_FIM_ARTIGO, MINIMO_PALAVRAS_ARTIGO
 from logger import inicializar_sistema_log
 
 logger = inicializar_sistema_log(__name__)
@@ -57,3 +57,38 @@ def obter_estatisticas_corpus(artigos):
 
     logger.info("Estatisticas do corpus: %s", estatisticas)
     return estatisticas
+
+
+def filtrar_artigos_por_tamanho(artigos, minimo_palavras=None):
+    """
+    Remove artigos com menos de N palavras do corpus.
+
+    Args:
+        artigos: Lista de dicionários de artigos (titulo, url, conteudo).
+        minimo_palavras: Número mínimo de palavras. Usa MINIMO_PALAVRAS_ARTIGO se None.
+
+    Returns:
+        Tupla (artigos_validos, artigos_removidos).
+    """
+    if minimo_palavras is None:
+        minimo_palavras = MINIMO_PALAVRAS_ARTIGO
+
+    artigos_validos = []
+    artigos_removidos = []
+
+    for artigo in artigos:
+        quantidade_palavras = len(artigo["conteudo"].split())
+        if quantidade_palavras >= minimo_palavras:
+            artigos_validos.append(artigo)
+        else:
+            artigos_removidos.append(artigo)
+            logger.info(
+                "Artigo removido por ser muito curto: '%s' (%d palavras, minimo=%d)",
+                artigo["titulo"], quantidade_palavras, minimo_palavras,
+            )
+
+    logger.info(
+        "Filtro minimo de palavras (%d): %d artigos mantidos, %d artigos removidos",
+        minimo_palavras, len(artigos_validos), len(artigos_removidos),
+    )
+    return artigos_validos, artigos_removidos

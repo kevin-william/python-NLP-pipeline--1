@@ -8,7 +8,10 @@ from preprocessing import (
     obter_stopwords,
     adicionar_stopwords_personalizadas,
     aplicar_stemming,
+    normalizar_texto,
+    extrair_ngramas,
     tokenizar_artigo,
+    tokenizar_por_tipo,
     remover_stopwords_dos_tokens,
 )
 
@@ -97,4 +100,117 @@ def test_remover_stopwords_dos_tokens():
     assert "o" not in processados
     assert "de" not in processados
     assert "processamento" in processados or "processar" in processados
+
+
+# ---------------------------------------------------------------------------
+# Testes de normalização textual
+# ---------------------------------------------------------------------------
+
+def test_normalizar_texto_lowercase():
+    assert normalizar_texto("Texto COM MAIUSCULAS") == "texto com maiusculas"
+
+
+def test_normalizar_texto_acentos_lowercase():
+    resultado = normalizar_texto("Ção Ação")
+    assert resultado == "ção ação"
+
+
+def test_normalizar_texto_remove_caracteres_especiais():
+    resultado = normalizar_texto("texto! com. caracteres? especiais# e (parênteses)")
+    for char in "!.?#()":
+        assert char not in resultado
+
+
+def test_normalizar_texto_preserva_acentos():
+    resultado = normalizar_texto("ação não está correta")
+    assert "ação" in resultado
+    assert "não" in resultado
+    assert "está" in resultado
+
+
+def test_normalizar_texto_excesso_espacos():
+    resultado = normalizar_texto("texto   com    muito    espaço")
+    assert "  " not in resultado
+    assert resultado == resultado.strip()
+
+
+def test_normalizar_texto_retorna_string():
+    assert isinstance(normalizar_texto("qualquer texto"), str)
+
+
+# ---------------------------------------------------------------------------
+# Testes de extração de n-gramas
+# ---------------------------------------------------------------------------
+
+def test_extrair_ngramas_bigrama():
+    tokens = ["a", "b", "c", "d", "e"]
+    grupos = extrair_ngramas(tokens, 2)
+    assert len(grupos) == 4
+    assert grupos[0] == ["a", "b"]
+    assert grupos[-1] == ["d", "e"]
+
+
+def test_extrair_ngramas_trigrama():
+    tokens = ["a", "b", "c", "d", "e"]
+    grupos = extrair_ngramas(tokens, 3)
+    assert len(grupos) == 3
+    assert grupos[0] == ["a", "b", "c"]
+
+
+def test_extrair_ngramas_lista_menor_que_n():
+    tokens = ["a", "b"]
+    grupos = extrair_ngramas(tokens, 3)
+    assert grupos == []
+
+
+# ---------------------------------------------------------------------------
+# Testes de tokenização por tipo
+# ---------------------------------------------------------------------------
+
+def test_tokenizar_por_tipo_palavra_retrocompativel():
+    texto = "O processamento de linguagem natural é fascinante."
+    resultado_tipo = tokenizar_por_tipo(texto, tipo_tokenizacao='palavra')
+    resultado_antigo = tokenizar_artigo(texto)
+    assert len(resultado_tipo["tokens"]) == len(resultado_antigo["tokens"])
+
+
+def test_tokenizar_por_tipo_bigrama():
+    texto = "O gato preto correu rapidamente pela rua."
+    resultado = tokenizar_por_tipo(texto, tipo_tokenizacao='bigrama')
+    assert "tokens" in resultado
+    assert len(resultado["tokens"]) > 0
+    primeiro = resultado["tokens"][0]
+    assert " " in primeiro["texto"], "Bigrama deve conter espaço entre as palavras"
+
+
+def test_tokenizar_por_tipo_bigrama_tem_dois_termos():
+    texto = "gato preto correu rapidamente"
+    resultado = tokenizar_por_tipo(texto, tipo_tokenizacao='bigrama')
+    for token in resultado["tokens"]:
+        partes = token["texto"].split(" ")
+        assert len(partes) == 2, f"Bigrama deve ter 2 termos, encontrou: {token['texto']}"
+
+
+def test_tokenizar_por_tipo_trigrama():
+    texto = "O gato preto correu rapidamente pela rua hoje."
+    resultado = tokenizar_por_tipo(texto, tipo_tokenizacao='trigrama')
+    assert len(resultado["tokens"]) > 0
+    primeiro = resultado["tokens"][0]
+    partes = primeiro["texto"].split(" ")
+    assert len(partes) == 3, f"Trigrama deve ter 3 termos, encontrou: {primeiro['texto']}"
+
+
+def test_tokenizar_por_tipo_sentenca():
+    texto = "O gato correu. O cachorro latiu."
+    resultado = tokenizar_por_tipo(texto, tipo_tokenizacao='sentenca')
+    assert len(resultado["tokens"]) >= 1
+    for token in resultado["tokens"]:
+        assert token["pos"] == "SENT"
+
+
+def test_tokenizar_por_tipo_sentenca_tem_texto():
+    texto = "Linguagem natural é fascinante. Existem muitos métodos."
+    resultado = tokenizar_por_tipo(texto, tipo_tokenizacao='sentenca')
+    for token in resultado["tokens"]:
+        assert len(token["texto"].strip()) > 0
 
