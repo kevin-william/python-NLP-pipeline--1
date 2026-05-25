@@ -132,7 +132,19 @@ METODOS_PROCESSAMENTO_TOKENS = ["lemmatizacao", "stemming", "none"]
 TIPOS_TOKENIZACAO = ["palavra"]              # 'palavra', 'bigrama', 'trigrama', 'sentenca'
 MINIMO_PALAVRAS_ARTIGO = 40                  # artigos com menos palavras são removidos
 STOPWORDS_EXTRAS = []                        # stopwords adicionais além das do spaCy
+
+# WordCloud (customizavel via fase1_config.py)
+LARGURA_NUVEM_PALAVRAS = 1200
+ALTURA_NUVEM_PALAVRAS = 600
+MAXIMO_PALAVRAS_NUVEM = 200
+PALETA_CORES_NUVEM = "viridis"
+COR_FUNDO_NUVEM = "white"
+TAMANHO_MINIMO_FONTE_NUVEM = 8
+TAMANHO_MAXIMO_FONTE_NUVEM = 150
+SEMENTE_NUVEM_PALAVRAS = SEED_ALEATORIO
 ```
+
+Esses parametros controlam a aparencia da nuvem de palavras da fase1 e sao aplicados automaticamente pela funcao de geracao quando nenhum override e passado na chamada.
 
 ### Input
 

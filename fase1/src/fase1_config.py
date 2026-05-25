@@ -30,7 +30,7 @@ MARCADOR_FIM_ARTIGO = "===== ARTICLE END ====="
 
 # Métodos de processamento de tokens: 'none', 'lemmatizacao', 'stemming'
 # Pode ser uma lista com um ou múltiplos valores para execução sequencial
-METODOS_PROCESSAMENTO_TOKENS = ['lemmatizacao', 'stemming', 'none']
+METODOS_PROCESSAMENTO_TOKENS = ['lemmatizacao','none']
 
 # Stopwords extras a serem adicionadas às stopwords padrão do spaCy
 STOPWORDS_EXTRAS = []
@@ -43,3 +43,30 @@ TIPOS_TOKENIZACAO = ['palavra']
 
 # Filtro de tamanho mínimo: artigos com menos de N palavras são removidos antes do processamento
 MINIMO_PALAVRAS_ARTIGO = 40
+
+# ---------------------------------------------------------------------------
+# Configuracao da WordCloud (MVP)
+# ---------------------------------------------------------------------------
+# Largura da imagem final em pixels; aumente para mais detalhe visual.
+LARGURA_NUVEM_PALAVRAS = 1200
+
+# Altura da imagem final em pixels.
+ALTURA_NUVEM_PALAVRAS = 600
+
+# Limite maximo de palavras exibidas na nuvem.
+MAXIMO_PALAVRAS_NUVEM = 50
+
+# Paleta de cores do matplotlib usada pela WordCloud (ex.: viridis, plasma, magma).
+PALETA_CORES_NUVEM = "magma"
+
+# Cor de fundo da imagem da nuvem.
+COR_FUNDO_NUVEM = "white"
+
+# Tamanho minimo da fonte; valores muito baixos geram ruido visual.
+TAMANHO_MINIMO_FONTE_NUVEM = 20
+
+# Tamanho maximo da fonte; deve ser >= TAMANHO_MINIMO_FONTE_NUVEM.
+TAMANHO_MAXIMO_FONTE_NUVEM = 160
+
+# Semente da WordCloud para manter layout reproduzivel entre execucoes.
+SEMENTE_NUVEM_PALAVRAS = SEED_ALEATORIO

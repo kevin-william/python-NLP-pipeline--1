@@ -74,8 +74,15 @@ pip install scikit-learn gensim
 As configurações estão em `src/fase2_config.py`:
 
 ```python
-# Métodos a serem treinados (ordem importa!)
+# Caminhos e diretórios
+DIRETORIO_BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+CAMINHO_PARQUET_ENTRADA = os.path.join(DIRETORIO_BASE, "input", "100-artigos_anotacao_lg_lemmatizacao_palavra.parquet")
+DIRETORIO_SAIDA = os.path.join(DIRETORIO_BASE, "output")
+CAMINHO_LOG = os.path.join(DIRETORIO_SAIDA, "100-artigos_anotacao_lg_lemmatizacao_palavra.log")
+
+# Métodos a serem treinados (ordem importa)
 METODOS_EMBEDDING = ["bow", "tfidf", "word2vec"]
+TOP_K_RESULTADOS = 5
 
 # Parâmetros de cada método
 PARAMS_BOW = {"max_features": 5000, "min_df": 1}
@@ -88,19 +95,66 @@ PARAMS_WORD2VEC = {
     "seed": 42
 }
 
-# Configurações de busca
-TOP_K_RESULTADOS = 10
-
 # Visualização t-SNE
 HABILITAR_TSNE = True
 PARAMS_TSNE = {"n_components": 2, "perplexity": 30, "n_iter": 2000, "random_state": 42}
 PARAMS_PLOT_TSNE = {
-    "figsize": (16, 12),
-    "dpi": 150,
+    "figsize": (20, 16),
+    "dpi": 600,
     "marker_size": 50,
     "annotate_fontsize": 7,
 }
+
+CAMINHO_SAIDA_TSNE = os.path.join(DIRETORIO_SAIDA, "tsne_plot-100-artigos_anotacao_lg_lemmatizacao_palavra.png")
 ```
+
+### Referência completa das variáveis de configuração
+
+| Variável | Tipo | Valor atual | Descrição |
+|----------|------|-------------|-----------|
+| `DIRETORIO_BASE` | `str` | diretório `fase2/` | Raiz da fase2 para resolver caminhos relativos. |
+| `CAMINHO_PARQUET_ENTRADA` | `str` | `fase2/input/100-artigos_anotacao_lg_lemmatizacao_palavra.parquet` | Parquet de entrada usado para gerar os embeddings. |
+| `DIRETORIO_SAIDA` | `str` | `fase2/output/` | Pasta onde logs e artefatos são salvos. |
+| `CAMINHO_LOG` | `str` | `fase2/output/100-artigos_anotacao_lg_lemmatizacao_palavra.log` | Arquivo de log da execução da fase2. |
+| `METODOS_EMBEDDING` | `list[str]` | `['bow', 'tfidf', 'word2vec']` | Ordem dos métodos treinados e disponíveis na busca. |
+| `TOP_K_RESULTADOS` | `int` | `5` | Quantidade padrão de resultados por consulta. |
+| `PARAMS_BOW` | `dict` | `{'max_features': 5000, 'min_df': 1}` | Hiperparâmetros do Bag-of-Words (`CountVectorizer`). |
+| `PARAMS_TFIDF` | `dict` | `{'max_features': 5000, 'min_df': 1, 'norm': 'l2'}` | Hiperparâmetros do TF-IDF (`TfidfVectorizer`). |
+| `PARAMS_WORD2VEC` | `dict` | `{'vector_size': 100, 'window': 5, 'min_count': 1, 'epochs': 30, 'seed': 42}` | Hiperparâmetros de treino do Word2Vec (Gensim). |
+| `HABILITAR_TSNE` | `bool` | `True` | Liga/desliga a geração da visualização t-SNE ao final do pipeline. |
+| `PARAMS_TSNE` | `dict` | `{'n_components': 2, 'perplexity': 30, 'n_iter': 2000, 'random_state': 42}` | Parâmetros do algoritmo t-SNE para reduzir embeddings para 2D. |
+| `PARAMS_PLOT_TSNE` | `dict` | `{'figsize': (20, 16), 'dpi': 600, 'marker_size': 50, 'annotate_fontsize': 7}` | Parâmetros visuais do gráfico t-SNE salvo em arquivo. |
+| `CAMINHO_SAIDA_TSNE` | `str` | `fase2/output/tsne_plot-100-artigos_anotacao_lg_lemmatizacao_palavra.png` | Caminho final da imagem t-SNE gerada. |
+
+### Significado dos parâmetros internos dos dicionários
+
+`PARAMS_BOW`
+- `max_features`: limite máximo de termos no vocabulário final do `CountVectorizer`. Reduzir esse valor diminui uso de memória e tempo de treino, mas pode perder termos relevantes; aumentar melhora cobertura semântica do corpus, com custo computacional maior.
+- `min_df`: frequência mínima de documentos para manter um termo no vocabulário. Valores maiores removem ruído (termos muito raros), mas podem descartar palavras específicas importantes para busca em nichos.
+
+`PARAMS_TFIDF`
+- `max_features`: limite máximo de termos no vocabulário do `TfidfVectorizer`. Em corpora grandes, esse controle evita explosão dimensional; em corpora pequenos, valores muito baixos podem empobrecer a representação.
+- `min_df`: frequência mínima de documentos para manter um termo. Funciona como filtro de ruído lexical; quanto maior o valor, mais agressiva é a remoção de termos raros.
+- `norm`: normalização dos vetores (`l1` ou `l2`). Com `l2` (padrão), a similaridade de cosseno tende a ficar mais estável entre documentos de tamanhos diferentes.
+
+`PARAMS_WORD2VEC`
+- `vector_size`: dimensão de cada embedding de palavra. Dimensões maiores capturam mais nuances semânticas, porém exigem mais memória e podem overfit em corpus pequeno.
+- `window`: tamanho da janela de contexto (palavras antes/depois). Janelas pequenas favorecem relações sintáticas locais; janelas maiores capturam contexto semântico mais amplo.
+- `min_count`: frequência mínima para incluir uma palavra no vocabulário. Aumentar remove palavras raras e ruído; reduzir preserva termos pouco frequentes, úteis em domínios específicos.
+- `epochs`: número de passagens completas no corpus. Mais épocas normalmente melhoram convergência, mas aumentam tempo de treino e risco de ajuste excessivo em datasets pequenos.
+- `seed`: semente aleatória para reprodutibilidade do treinamento e comparabilidade entre execuções.
+
+`PARAMS_TSNE`
+- `n_components`: dimensão da projeção final (tipicamente `2` para gráfico plano). Valores maiores podem ser úteis para análise exploratória, mas dificultam visualização direta.
+- `perplexity`: controla o número efetivo de vizinhos considerados. Valores baixos destacam microclusters; valores altos tendem a preservar estrutura global. Regra prática: manter abaixo do número de amostras e testar variações.
+- `n_iter`: número de iterações de otimização. Iterações insuficientes podem gerar projeções instáveis; valores mais altos aumentam qualidade visual, com maior custo de tempo.
+- `random_state`: semente para tornar a projeção reproduzível entre execuções e facilitar comparação de experimentos.
+
+`PARAMS_PLOT_TSNE`
+- `figsize`: tamanho da figura em polegadas (`largura`, `altura`). Figuras maiores melhoram legibilidade de rótulos quando há muitos documentos.
+- `dpi`: resolução de saída da imagem. DPI alto melhora nitidez para relatório/apresentação, mas aumenta tamanho de arquivo e tempo de renderização.
+- `marker_size`: tamanho dos pontos no scatter plot. Ajuste fino importante para evitar sobreposição (muito grande) ou baixa visibilidade (muito pequeno).
+- `annotate_fontsize`: tamanho da fonte das anotações dos pontos. Deve equilibrar legibilidade e poluição visual; em muitos pontos, fontes menores tendem a funcionar melhor.
 
 ### Exemplos de Configuração
 
@@ -121,21 +175,31 @@ PARAMS_WORD2VEC = {"vector_size": 200, "window": 5, "min_count": 2, "epochs": 50
 
 ### Parâmetros do t-SNE
 
-| Parâmetro | Valor Padrão | Descrição |
-|-----------|-------------|-----------|
-| `perplexity` | 30 | Vizinhos considerados. Baixo (5-10) = clusters compactos. Alto (30-50) = distribuição uniforme |
-| `n_iter` | 2000 | Iterações de otimização. Valores maiores melhoram o resultado |
-| `n_components` | 2 | Dimensões do resultado (2 = 2D, 3 = 3D) |
-| `random_state` | 42 | Semente para reprodutibilidade |
+| Parâmetro | Valor Padrão | Efeito Prático | Faixa sugerida |
+|-----------|-------------|----------------|----------------|
+| `perplexity` | 30 | Controla o balanço local vs global da projeção. Baixo destaca microgrupos; alto tende a mostrar organização mais ampla. | 5 a 50 (sempre menor que o número de amostras) |
+| `n_iter` | 2000 | Define o esforço de otimização. Poucas iterações podem gerar mapa instável; mais iterações melhoram convergência com maior custo de tempo. | 1000 a 4000 |
+| `n_components` | 2 | Número de dimensões da saída. Em 2D é ideal para visualização; em 3D serve para exploração adicional. | 2 (padrão) ou 3 |
+| `random_state` | 42 | Mantém a projeção reproduzível entre execuções para comparação de experimentos. | inteiro fixo |
+
+Sinais de ajuste:
+- Se o gráfico ficar "embolado", aumente `n_iter` e teste `perplexity` maior.
+- Se perder separação de grupos pequenos, reduza `perplexity`.
+- Para comparação entre versões do pipeline, mantenha `random_state` fixo.
 
 ### Parâmetros do Plot (visualização)
 
-| Parâmetro | Valor Padrão | Descrição |
-|-----------|-------------|-----------|
-| `figsize` | (16, 12) | Tamanho da figura em polegadas (largura, altura) |
-| `dpi` | 150 | Resolução da imagem salva |
-| `marker_size` | 50 | Tamanho dos pontos no scatter plot |
-| `annotate_fontsize` | 7 | Tamanho da fonte das anotações |
+| Parâmetro | Valor Padrão | Efeito Prático | Faixa sugerida |
+|-----------|-------------|----------------|----------------|
+| `figsize` | (20, 16) | Aumenta a área útil do gráfico e reduz sobreposição de rótulos. | (12, 9) a (24, 18) |
+| `dpi` | 600 | Melhora nitidez para relatório e zoom, com arquivos maiores. | 150 a 600 |
+| `marker_size` | 50 | Controla visibilidade dos pontos; muito alto gera sobreposição, muito baixo prejudica leitura. | 20 a 80 |
+| `annotate_fontsize` | 7 | Define legibilidade dos rótulos no gráfico. | 6 a 10 |
+
+Sinais de ajuste:
+- Se houver muita sobreposição de texto, aumente `figsize` e reduza `annotate_fontsize`.
+- Se os pontos estiverem pouco visíveis em tela/projeção, aumente `marker_size`.
+- Para exportação acadêmica, priorize `dpi` alto (300+); para uso rápido local, `dpi` menor acelera geração.
 
 ### Valores Recomendados por Cenário
 

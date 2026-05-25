@@ -125,7 +125,20 @@ MINIMO_PALAVRAS_ARTIGO = 40
 
 # Stopwords adicionais além das padrão do spaCy
 STOPWORDS_EXTRAS = []
+
+# Customizacao da WordCloud (MVP)
+LARGURA_NUVEM_PALAVRAS = 1200                  # resolucao horizontal da imagem
+ALTURA_NUVEM_PALAVRAS = 600                    # resolucao vertical da imagem
+MAXIMO_PALAVRAS_NUVEM = 200                    # limite de palavras na nuvem
+PALETA_CORES_NUVEM = "viridis"                # mapa de cores (matplotlib)
+COR_FUNDO_NUVEM = "white"                     # cor de fundo da imagem
+TAMANHO_MINIMO_FONTE_NUVEM = 8                 # menor tamanho de fonte permitido
+TAMANHO_MAXIMO_FONTE_NUVEM = 150               # maior tamanho de fonte permitido
+SEMENTE_NUVEM_PALAVRAS = SEED_ALEATORIO        # layout reproduzivel
 ```
+
+Os parametros da WordCloud sao lidos automaticamente por `wordcloud_gen.py`.
+Quando voce quiser sobrescrever algo pontualmente via codigo, basta passar os argumentos na chamada de `gerar_nuvem_palavras(...)`; caso contrario, os valores acima sao usados como default.
 
 > A pipeline é executada para **cada combinação** `METODOS_PROCESSAMENTO_TOKENS` × `TIPOS_TOKENIZACAO`. Com `['lemmatizacao', 'stemming']` e `['palavra', 'bigrama']`, são geradas 4 execuções com artefatos separados.
 
