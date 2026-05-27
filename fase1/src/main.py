@@ -11,7 +11,6 @@ from fase1_config import (
     CAMINHO_ANALISE_VOCABULARIO,
     DIRETORIO_SAIDA,
     METODOS_PROCESSAMENTO_TOKENS,
-    TIPOS_TOKENIZACAO,
 )
 from logger import inicializar_sistema_log
 from corpus_loader import carregar_artigos, obter_estatisticas_corpus, filtrar_artigos_por_tamanho
@@ -37,17 +36,17 @@ def _construir_caminho_saida(caminho_base, sufixo_metodo, nova_extensao=None):
     return f"{raiz}{sufixo_metodo}{extensao}"
 
 
-def executar_pipeline_por_metodo(artigos, metodo, tipo_tokenizacao='palavra'):
-    """Executa a pipeline completa para uma combinação de método e tipo de tokenização."""
-    sufixo = f"_{metodo}_{tipo_tokenizacao}"
+def executar_pipeline_por_metodo(artigos, metodo):
+    """Executa a pipeline completa para um método de processamento de tokens."""
+    sufixo = f"_{metodo}"
 
     logger.info("=" * 60)
-    logger.info("METODO: %s | TIPO DE TOKENIZACAO: %s", metodo, tipo_tokenizacao)
+    logger.info("METODO: %s", metodo)
     logger.info("=" * 60)
 
     # Etapa 2: POS tagging com spaCy
     logger.info("[ETAPA 2] POS Tagging com spaCy")
-    dataframe = processar_lote_artigos(artigos, metodo_processamento=metodo, tipo_tokenizacao=tipo_tokenizacao)
+    dataframe = processar_lote_artigos(artigos, metodo_processamento=metodo)
 
     caminho_parquet = _construir_caminho_saida(CAMINHO_PARQUET_SAIDA, sufixo)
     dataframe.to_parquet(caminho_parquet, index=False)
@@ -133,12 +132,10 @@ def executar_pipeline_principal():
     artigos, artigos_removidos = filtrar_artigos_por_tamanho(artigos)
     logger.info("Artigos para processamento: %d", len(artigos))
 
-    # Executar pipeline para cada combinacao metodo x tipo de tokenizacao
+    # Executar pipeline para cada método de processamento
     logger.info("Metodos de processamento: %s", METODOS_PROCESSAMENTO_TOKENS)
-    logger.info("Tipos de tokenizacao: %s", TIPOS_TOKENIZACAO)
     for metodo in METODOS_PROCESSAMENTO_TOKENS:
-        for tipo in TIPOS_TOKENIZACAO:
-            executar_pipeline_por_metodo(artigos, metodo, tipo)
+        executar_pipeline_por_metodo(artigos, metodo)
 
     logger.info("=" * 60)
     logger.info("PIPELINE CONCLUIDO COM SUCESSO")

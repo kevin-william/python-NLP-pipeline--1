@@ -9,7 +9,6 @@ from preprocessing import (
     adicionar_stopwords_personalizadas,
     aplicar_stemming,
     normalizar_texto,
-    extrair_ngramas,
     tokenizar_artigo,
     tokenizar_por_tipo,
     remover_stopwords_dos_tokens,
@@ -138,29 +137,18 @@ def test_normalizar_texto_retorna_string():
     assert isinstance(normalizar_texto("qualquer texto"), str)
 
 
-# ---------------------------------------------------------------------------
-# Testes de extração de n-gramas
-# ---------------------------------------------------------------------------
-
-def test_extrair_ngramas_bigrama():
-    tokens = ["a", "b", "c", "d", "e"]
-    grupos = extrair_ngramas(tokens, 2)
-    assert len(grupos) == 4
-    assert grupos[0] == ["a", "b"]
-    assert grupos[-1] == ["d", "e"]
+def test_normalizar_texto_remove_urls():
+    resultado = normalizar_texto("acesse https://example.com/pagina e www.site.com.br hoje")
+    assert "http" not in resultado
+    assert "www" not in resultado
+    assert "example" not in resultado
+    assert "acesse" in resultado
+    assert "hoje" in resultado
 
 
-def test_extrair_ngramas_trigrama():
-    tokens = ["a", "b", "c", "d", "e"]
-    grupos = extrair_ngramas(tokens, 3)
-    assert len(grupos) == 3
-    assert grupos[0] == ["a", "b", "c"]
-
-
-def test_extrair_ngramas_lista_menor_que_n():
-    tokens = ["a", "b"]
-    grupos = extrair_ngramas(tokens, 3)
-    assert grupos == []
+def test_normalizar_texto_remove_underscore():
+    resultado = normalizar_texto("palavra_composta")
+    assert "_" not in resultado
 
 
 # ---------------------------------------------------------------------------
@@ -172,32 +160,6 @@ def test_tokenizar_por_tipo_palavra_retrocompativel():
     resultado_tipo = tokenizar_por_tipo(texto, tipo_tokenizacao='palavra')
     resultado_antigo = tokenizar_artigo(texto)
     assert len(resultado_tipo["tokens"]) == len(resultado_antigo["tokens"])
-
-
-def test_tokenizar_por_tipo_bigrama():
-    texto = "O gato preto correu rapidamente pela rua."
-    resultado = tokenizar_por_tipo(texto, tipo_tokenizacao='bigrama')
-    assert "tokens" in resultado
-    assert len(resultado["tokens"]) > 0
-    primeiro = resultado["tokens"][0]
-    assert " " in primeiro["texto"], "Bigrama deve conter espaço entre as palavras"
-
-
-def test_tokenizar_por_tipo_bigrama_tem_dois_termos():
-    texto = "gato preto correu rapidamente"
-    resultado = tokenizar_por_tipo(texto, tipo_tokenizacao='bigrama')
-    for token in resultado["tokens"]:
-        partes = token["texto"].split(" ")
-        assert len(partes) == 2, f"Bigrama deve ter 2 termos, encontrou: {token['texto']}"
-
-
-def test_tokenizar_por_tipo_trigrama():
-    texto = "O gato preto correu rapidamente pela rua hoje."
-    resultado = tokenizar_por_tipo(texto, tipo_tokenizacao='trigrama')
-    assert len(resultado["tokens"]) > 0
-    primeiro = resultado["tokens"][0]
-    partes = primeiro["texto"].split(" ")
-    assert len(partes) == 3, f"Trigrama deve ter 3 termos, encontrou: {primeiro['texto']}"
 
 
 def test_tokenizar_por_tipo_sentenca():

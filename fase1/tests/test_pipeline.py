@@ -6,7 +6,6 @@ import pytest
 from corpus_loader import carregar_artigos, filtrar_artigos_por_tamanho
 from preprocessing import (
     tokenizar_artigo,
-    tokenizar_por_tipo,
     remover_stopwords_dos_tokens,
     obter_stopwords,
 )
@@ -78,36 +77,6 @@ def test_saida_analise_vocabulario():
     assert "quantidade_vocabulario_filtrado" in analise
     assert "percentual_reducao_vocabulario" in analise
     assert analise["quantidade_vocabulario_filtrado"] <= analise["quantidade_vocabulario_bruto"]
-
-
-# ---------------------------------------------------------------------------
-# Testes de pipeline com novos tipos de tokenização
-# ---------------------------------------------------------------------------
-
-def test_pipeline_com_tipo_bigrama():
-    artigos = carregar_artigos()
-    resultado = tokenizar_por_tipo(artigos[0]["conteudo"], tipo_tokenizacao='bigrama')
-    tokens = resultado["tokens"]
-    assert len(tokens) > 0
-    assert " " in tokens[0]["texto"], "Primeiro token deve ser um bigrama (com espaço)"
-
-
-def test_pipeline_com_tipo_trigrama():
-    artigos = carregar_artigos()
-    resultado = tokenizar_por_tipo(artigos[0]["conteudo"], tipo_tokenizacao='trigrama')
-    tokens = resultado["tokens"]
-    assert len(tokens) > 0
-    partes = tokens[0]["texto"].split(" ")
-    assert len(partes) == 3, "Primeiro token deve ser um trigrama (3 termos)"
-
-
-def test_pipeline_com_tipo_sentenca():
-    artigos = carregar_artigos()
-    resultado = tokenizar_por_tipo(artigos[0]["conteudo"], tipo_tokenizacao='sentenca')
-    tokens = resultado["tokens"]
-    assert len(tokens) > 0
-    for token in tokens:
-        assert token["pos"] == "SENT"
 
 
 # ---------------------------------------------------------------------------

@@ -1,5 +1,5 @@
 ﻿import pandas as pd
-from preprocessing import obter_instancia_nlp, aplicar_stemming, normalizar_texto, extrair_ngramas
+from preprocessing import obter_instancia_nlp, aplicar_stemming, normalizar_texto
 from fase1_config import TAMANHO_LOTE
 from logger import inicializar_sistema_log
 
@@ -59,58 +59,14 @@ def _processar_palavras(id_artigo, artigo, documento, metodo_processamento):
     return linhas
 
 
-def _processar_ngramas(id_artigo, artigo, documento, metodo_processamento, n, tipo_tokenizacao):
-    """Gera linhas com tokenização por n-grama (bigrama ou trigrama)."""
-    tokens_base = list(documento)
-    grupos = extrair_ngramas(tokens_base, n)
-    linhas = []
-    for id_token, grupo in enumerate(grupos, start=1):
-        texto_grupo = " ".join(t.text for t in grupo)
-        lema_grupo = " ".join(t.lemma_ for t in grupo)
-        if metodo_processamento == 'lemmatizacao':
-            processado = lema_grupo
-        elif metodo_processamento == 'stemming':
-            processado = " ".join(aplicar_stemming(t.lemma_) for t in grupo)
-        else:
-            processado = texto_grupo
-        entidade, rotulo_entidade = _extrair_entidade(grupo[0])
-        linhas.append(_construir_linha(
-            id_artigo, id_token, texto_grupo, lema_grupo, processado,
-            grupo[0].pos_, grupo[0].tag_, grupo[0].dep_,
-            grupo[0].head.text if grupo[0].head else "",
-            entidade, rotulo_entidade, tipo_tokenizacao, artigo,
-        ))
-    return linhas
-
-
-def _processar_sentencas(id_artigo, artigo, documento, metodo_processamento):
-    """Gera linhas com tokenização por sentença completa."""
-    linhas = []
-    for id_sentenca, sentenca in enumerate(documento.sents, start=1):
-        texto_sentenca = sentenca.text
-        lema_sentenca = " ".join(t.lemma_ for t in sentenca)
-        if metodo_processamento == 'lemmatizacao':
-            processado = lema_sentenca
-        elif metodo_processamento == 'stemming':
-            processado = " ".join(aplicar_stemming(t.lemma_) for t in sentenca)
-        else:
-            processado = texto_sentenca
-        linhas.append(_construir_linha(
-            id_artigo, id_sentenca, texto_sentenca, lema_sentenca, processado,
-            "SENT", "SENT", "", "", "", "", 'sentenca', artigo,
-        ))
-    return linhas
-
-
-def processar_lote_artigos(artigos, metodo_processamento='none', tipo_tokenizacao='palavra'):
+def processar_lote_artigos(artigos, metodo_processamento='none'):
     """
-    Processa uma lista de artigos em lote com spaCy.
+    Processa uma lista de artigos em lote com spaCy, tokenizando por palavra.
     Aplica normalização textual antes do processamento linguístico.
 
     Args:
         artigos: Lista de dicionários de artigos (titulo, url, conteudo).
         metodo_processamento: 'none', 'lemmatizacao' ou 'stemming'.
-        tipo_tokenizacao: 'palavra', 'bigrama', 'trigrama' ou 'sentenca'.
 
     Returns:
         DataFrame pandas com todos os tokens anotados.
@@ -118,31 +74,19 @@ def processar_lote_artigos(artigos, metodo_processamento='none', tipo_tokenizaca
     nlp = obter_instancia_nlp()
     textos = [normalizar_texto(artigo["conteudo"]) for artigo in artigos]
     logger.info(
-        "Processando %d artigos em lote (batch_size=%d, metodo=%s, tipo=%s)...",
-        len(textos), TAMANHO_LOTE, metodo_processamento, tipo_tokenizacao,
+        "Processando %d artigos em lote (batch_size=%d, metodo=%s)...",
+        len(textos), TAMANHO_LOTE, metodo_processamento,
     )
 
     linhas = []
-
     for id_artigo, (artigo, documento) in enumerate(
         zip(artigos, nlp.pipe(textos, batch_size=TAMANHO_LOTE)), start=1
     ):
-        if tipo_tokenizacao == 'palavra':
-            novas_linhas = _processar_palavras(id_artigo, artigo, documento, metodo_processamento)
-        elif tipo_tokenizacao == 'bigrama':
-            novas_linhas = _processar_ngramas(id_artigo, artigo, documento, metodo_processamento, 2, 'bigrama')
-        elif tipo_tokenizacao == 'trigrama':
-            novas_linhas = _processar_ngramas(id_artigo, artigo, documento, metodo_processamento, 3, 'trigrama')
-        elif tipo_tokenizacao == 'sentenca':
-            novas_linhas = _processar_sentencas(id_artigo, artigo, documento, metodo_processamento)
-        else:
-            logger.warning("Tipo de tokenizacao desconhecido '%s', usando 'palavra'.", tipo_tokenizacao)
-            novas_linhas = _processar_palavras(id_artigo, artigo, documento, metodo_processamento)
-
+        novas_linhas = _processar_palavras(id_artigo, artigo, documento, metodo_processamento)
         linhas.extend(novas_linhas)
         logger.info(
-            "Artigo %d processado: '%s' -> %d tokens (%s)",
-            id_artigo, artigo["titulo"], len(novas_linhas), tipo_tokenizacao,
+            "Artigo %d processado: '%s' -> %d tokens",
+            id_artigo, artigo["titulo"], len(novas_linhas),
         )
 
     dataframe = pd.DataFrame(linhas)

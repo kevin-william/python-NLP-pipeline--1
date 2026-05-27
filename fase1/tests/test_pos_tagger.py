@@ -20,7 +20,7 @@ def test_processar_lote_artigos():
     colunas_esperadas = [
         "id_artigo", "id_token", "token", "pos", "tag",
         "lema", "processado", "relacao_dependencia", "token_cabeca", "entidade", "rotulo_entidade",
-        "titulo", "url",
+        "tipo_tokenizacao", "titulo", "url",
     ]
     for coluna in colunas_esperadas:
         assert coluna in dataframe.columns, f"Coluna '{coluna}' ausente"
@@ -91,29 +91,8 @@ def test_lema_presente():
 # Testes de tipos de tokenização
 # ---------------------------------------------------------------------------
 
-def test_processar_lote_artigos_bigrama():
-    dataframe = processar_lote_artigos(_ARTIGOS, tipo_tokenizacao='bigrama')
-    assert len(dataframe) > 0
-    assert (dataframe["tipo_tokenizacao"] == "bigrama").all()
-    tokens_com_espaco = dataframe["token"].str.contains(" ")
-    assert tokens_com_espaco.any(), "Bigramas devem conter espaço entre os termos"
-
-
-def test_processar_lote_artigos_trigrama():
-    dataframe = processar_lote_artigos(_ARTIGOS, tipo_tokenizacao='trigrama')
-    assert len(dataframe) > 0
-    assert (dataframe["tipo_tokenizacao"] == "trigrama").all()
-
-
-def test_processar_lote_artigos_sentenca():
-    dataframe = processar_lote_artigos(_ARTIGOS, tipo_tokenizacao='sentenca')
-    assert len(dataframe) > 0
-    assert (dataframe["pos"] == "SENT").all()
-    assert (dataframe["tipo_tokenizacao"] == "sentenca").all()
-
-
-def test_processar_lote_artigos_tipo_desconhecido_usa_palavra():
-    dataframe = processar_lote_artigos(_ARTIGOS, tipo_tokenizacao='invalido')
-    assert len(dataframe) > 0
+def test_tipo_tokenizacao_sempre_palavra():
+    """Tokenização é sempre por palavra; coluna tipo_tokenizacao deve ser 'palavra'."""
+    dataframe = processar_lote_artigos(_ARTIGOS)
     assert (dataframe["tipo_tokenizacao"] == "palavra").all()
 
