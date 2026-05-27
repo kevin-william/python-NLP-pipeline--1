@@ -10,7 +10,7 @@ CAMINHO_PARQUET_ENTRADA = os.path.join(DIRETORIO_BASE, "input", "100-artigos_ano
 DIRETORIO_SAIDA = os.path.join(DIRETORIO_BASE, "output")
 
 # Caminho do arquivo de log principal da fase2.
-CAMINHO_LOG = os.path.join(DIRETORIO_SAIDA, "100-artigos_anotacao_lg_lemmatizacao_palavra.log")
+CAMINHO_LOG = os.path.join(DIRETORIO_SAIDA, "100-artigos_anotacao_lg_none_palavra.log")
 
 # Ordem dos metodos de embedding a treinar e disponibilizar na busca.
 METODOS_EMBEDDING = ["bow", "tfidf", "word2vec"]
@@ -42,4 +42,4 @@ PARAMS_PLOT_TSNE = {
 }
 
 # Caminho final da imagem t-SNE gerada no pipeline.
-CAMINHO_SAIDA_TSNE = os.path.join(DIRETORIO_SAIDA, "tsne_plot-100-artigos_anotacao_lg_lemmatizacao_palavra.png")
+CAMINHO_SAIDA_TSNE = os.path.join(DIRETORIO_SAIDA, "100-artigos_anotacao_lg_none_palavra.png")

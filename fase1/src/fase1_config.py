@@ -8,12 +8,12 @@ np.random.seed(SEED_ALEATORIO)
 
 DIRETORIO_BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-CAMINHO_ENTRADA = os.path.join(DIRETORIO_BASE, "input", "artigos_wikipedia_100_formatado.txt")
+CAMINHO_ENTRADA = os.path.join(DIRETORIO_BASE, "input", "1100-artigos_wikipedia-formatados.txt")
 DIRETORIO_SAIDA = os.path.join(DIRETORIO_BASE, "output")
-CAMINHO_LOG = os.path.join(DIRETORIO_SAIDA, "nlp_pipeline-100-artigos.log")
-CAMINHO_PARQUET_SAIDA = os.path.join(DIRETORIO_SAIDA, "100-artigos_anotacao_lg.parquet")
-CAMINHO_NUVEM_PALAVRAS = os.path.join(DIRETORIO_SAIDA, "wordcloud-100-artigos.png")
-CAMINHO_ANALISE_VOCABULARIO = os.path.join(DIRETORIO_SAIDA, "vocabulario_analise-100-artigos.json")
+CAMINHO_LOG = os.path.join(DIRETORIO_SAIDA, "nlp_1100-artigos_wikipedia-formatados.log")
+CAMINHO_PARQUET_SAIDA = os.path.join(DIRETORIO_SAIDA, "1100-artigos_wikipedia-formatados.parquet")
+CAMINHO_NUVEM_PALAVRAS = os.path.join(DIRETORIO_SAIDA, "1100-artigos_wikipedia-formatados.png")
+CAMINHO_ANALISE_VOCABULARIO = os.path.join(DIRETORIO_SAIDA, "1100-artigos_wikipedia-formatados.json")
 
 # CAMINHO_ENTRADA = os.path.join(DIRETORIO_BASE, "input", "artigos_wikipedia.txt")
 # DIRETORIO_SAIDA = os.path.join(DIRETORIO_BASE, "output")
@@ -54,7 +54,7 @@ LARGURA_NUVEM_PALAVRAS = 1200
 ALTURA_NUVEM_PALAVRAS = 600
 
 # Limite maximo de palavras exibidas na nuvem.
-MAXIMO_PALAVRAS_NUVEM = 50
+MAXIMO_PALAVRAS_NUVEM = 70
 
 # Paleta de cores do matplotlib usada pela WordCloud (ex.: viridis, plasma, magma).
 PALETA_CORES_NUVEM = "magma"
