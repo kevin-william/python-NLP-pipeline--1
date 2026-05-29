@@ -11,8 +11,9 @@ Pipeline modular de Processamento de Linguagem Natural sobre artigos da Wikipedi
 3. [Formato do Corpus](#formato-do-corpus)
 4. [Fase 1 — Pré-processamento e POS Tagging](#fase-1--pré-processamento-e-pos-tagging)
 5. [Fase 2 — Embeddings e Busca por Similaridade](#fase-2--embeddings-e-busca-por-similaridade)
-6. [Testes](#testes)
-7. [Estrutura do Projeto](#estrutura-do-projeto)
+6. [Fase 3 — Modelagem de Tópicos](#fase-3--modelagem-de-tópicos)
+7. [Testes](#testes)
+8. [Estrutura do Projeto](#estrutura-do-projeto)
 
 ---
 
@@ -27,6 +28,10 @@ artigos_wikipedia.txt
       │  100-artigos_anotacao_lg.parquet
         ▼
   [ FASE 2 ] ── BOW / TF-IDF / Word2Vec + Busca por Similaridade (CLI)
+        │
+      │  fase2_artifact.lpf2 (BOW + TF-IDF + documentos)
+        ▼
+  [ FASE 3 ] ── Modelagem de Tópicos (LDA, LSA, NMF)
         │
         ▼
   [ FASE N ] ── (futuro)
@@ -54,6 +59,9 @@ pip install -r fase1/requirements.txt
 
 # Apenas Fase 2
 pip install -r fase2/requirements.txt
+
+# Apenas Fase 3
+pip install -r fase3/requirements.txt
 ```
 
 ### Baixar o modelo spaCy
@@ -347,6 +355,102 @@ O score exibido é a **similaridade de cosseno** entre o vetor da consulta e o v
 
 ---
 
+## Fase 3 — Modelagem de Tópicos
+
+**Localização:** `fase3/`
+
+### O que faz
+
+A Fase 3 consome o artefato `.lpf2` gerado pela Fase 2 e aplica técnicas de modelagem de tópicos para descobrir temas latentes no corpus de artigos da Wikipedia:
+
+| Método | Implementação | Descrição |
+|--------|--------------|-----------|
+| **LDA** | `LatentDirichletAllocation` (scikit-learn) | Modelagem probabilística — retorna proporção documento→tópico |
+| **LSA** | `TruncatedSVD` (scikit-learn) | Modelagem por dimensionalidade — baseada em TF-IDF |
+| **NMF** | `NMF` (scikit-learn) | Fatoração matricial — baseada em TF-IDF |
+
+### Pré-requisito
+
+A Fase 3 depende do artefato `.lpf2` gerado pela Fase 2:
+
+```bash
+# O artefato é gerado automaticamente pela Fase 2 em fase2/output/artifacts/
+# Basta garantir que o arquivo existe antes de rodar a Fase 3
+```
+
+O artefato `.lpf2` (Language Processor Fase 2) contém:
+- Matriz BoW (contagens) — usada pelo LDA
+- Matriz TF-IDF — usada pelo LSA e NMF
+- Vectorizers fitados — para transformar novos documentos
+- Lista de documentos e títulos
+- Parâmetros utilizados
+
+### Como executar
+
+```bash
+cd fase3/src
+python main.py
+```
+
+O pipeline executa automaticamente:
+1. Carregamento do artefato `.lpf2` da Fase 2
+2. Treinamento dos modelos de tópicos configurados
+3. Geração de visualizações e métricas de avaliação
+
+### Configuração
+
+Edite `fase3/src/fase3_config.py` para controlar todos os aspectos da fase:
+
+```python
+# Métodos de modelagem a executar
+METODOS_TOPICOS = ["lda", "lsa", "nmf"]
+
+# Número de tópicos
+NUM_TOPICOS = 10
+
+# Parâmetros do LDA (usa matriz BoW)
+PARAMS_LDA = {
+    "n_components": 10,
+    "max_iter": 20,
+    "learning_method": "online",
+    "random_state": 42,
+}
+
+# Parâmetros do LSA (usa matriz TF-IDF)
+PARAMS_LSA = {
+    "n_components": 10,
+    "random_state": 42,
+}
+
+# Parâmetros do NMF (usa matriz TF-IDF)
+PARAMS_NMF = {
+    "n_components": 10,
+    "random_state": 42,
+}
+
+# Número de palavras por tópico a exibir
+TOP_N_PALAVRAS_TOPICO = 10
+```
+
+### Input
+
+| Arquivo | Descrição |
+|---------|-----------|
+| `fase2/output/artifacts/fase2_artifact.lpf2` | Artefato da Fase 2 com matrizes BoW e TF-IDF |
+
+### Output
+
+Todos os arquivos são salvos em `fase3/output/`:
+
+| Arquivo | Descrição |
+|---------|-----------|
+| `topicos_{metodo}.csv` | Tópicos encontrados com as top-N palavras e pesos |
+| `distribuicao_documentos_{metodo}.png` | Distribuição de tópicos por documento |
+| `distribuicao_topicos_{metodo}.png` | Distribuição geral de tópicos no corpus |
+| `fase3_pipeline.log` | Log detalhado da execução |
+
+---
+
 ## Testes
 
 Cada fase possui uma suíte de testes independente com pytest:
@@ -358,8 +462,11 @@ pytest fase1/tests/ -v
 # Apenas Fase 2
 pytest fase2/tests/ -v
 
+# Apenas Fase 3
+pytest fase3/tests/ -v
+
 # Todas as fases
-pytest fase1/tests/ fase2/tests/ -v
+pytest fase1/tests/ fase2/tests/ fase3/tests/ -v
 ```
 
 **Cobertura de testes:**
@@ -367,7 +474,8 @@ pytest fase1/tests/ fase2/tests/ -v
 | Fase | Módulos testados |
 |------|-----------------|
 | Fase 1 | `corpus_loader`, `preprocessing`, `pos_tagger`, pipeline completo |
-| Fase 2 | `bow_vectorizer`, `tfidf_vectorizer`, `word2vec_vectorizer`, `cosine_search`, `search_interface`, pipeline completo |
+| Fase 2 | `bow_vectorizer`, `tfidf_vectorizer`, `word2vec_vectorizer`, `cosine_search`, `search_interface`, pipeline completo, exportação de artefato |
+| Fase 3 | `lda_model`, `lsa_model`, `nmf_model`, `topic_visualization`, pipeline completo |
 
 ---
 
@@ -381,7 +489,8 @@ python-NLP-pipeline-#1/
 │
 ├── shared/
 │   ├── __init__.py
-│   └── utils.py                  # utilitários compartilhados entre fases
+│   ├── utils.py                  # utilitários compartilhados entre fases
+│   └── artifacts.py              # ArtifactFase2 — serialização de artefatos entre fases
 │
 ├── fase1/                        # Fase 1: Pré-processamento e POS Tagging
 │   ├── requirements.txt
@@ -414,6 +523,8 @@ python-NLP-pipeline-#1/
 │   ├── input/
 │   │   └── artigos_anotacao_lg.parquet  # Parquet da Fase 1
 │   ├── output/                      # gerado após execução
+│   │   ├── artifacts/
+│   │   │   └── fase2_artifact.lpf2  # artefato para Fase 3
 │   │   ├── tsne_plot.png
 │   │   └── fase2_pipeline.log
 │   ├── src/
@@ -438,10 +549,22 @@ python-NLP-pipeline-#1/
 │       ├── test_search_interface.py
 │       └── test_embedding_pipeline.py
 │
-├── fase3/                        # (futuro)
+├── fase3/                        # Fase 3: Modelagem de Tópicos
+│   ├── requirements.txt
+│   ├── input/
+│   │   └── (artefato .lpf2 da Fase 2)
+│   ├── output/                   # gerado após execução
+│   ├── src/
+│   │   ├── main.py               # ponto de entrada
+│   │   ├── fase3_config.py       # configurações e parâmetros
+│   │   ├── lda_model.py          # LDA (Latent Dirichlet Allocation)
+│   │   ├── lsa_model.py          # LSA (Truncated SVD)
+│   │   ├── nmf_model.py          # NMF (Non-negative Matrix Factorization)
+│   │   ├── topic_visualization.py # gráficos de tópicos
+│   │   └── logger.py
+│   └── tests/
+│       └── ...
+│
 ├── fase4/                        # (futuro)
 └── fase5/                        # (futuro)
-├── shared/                   # código compartilhado
-├── requirements.txt
-└── README.md
 ```
