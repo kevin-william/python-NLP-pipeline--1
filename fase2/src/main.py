@@ -3,6 +3,7 @@ import os
 
 DIRETORIO_SCRIPT = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, DIRETORIO_SCRIPT)
+sys.path.insert(0, os.path.join(DIRETORIO_SCRIPT, "..", "..", "shared"))
 
 from fase2_config import (
     CAMINHO_PARQUET_ENTRADA,
@@ -33,6 +34,7 @@ def executar_fase2_principal():
 
     configuracoes = {
         "METODOS_EMBEDDING": METODOS_EMBEDDING,
+        "DIRETORIO_SAIDA": DIRETORIO_SAIDA,
         "TOP_K_RESULTADOS": TOP_K_RESULTADOS,
         "PARAMS_BOW": PARAMS_BOW,
         "PARAMS_TFIDF": PARAMS_TFIDF,

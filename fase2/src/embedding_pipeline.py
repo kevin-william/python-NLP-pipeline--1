@@ -75,6 +75,19 @@ class PipelineEmbeddings:
         if self.configuracoes.get("HABILITAR_TSNE", False):
             self._executar_tsne()
 
+        metodos = self.configuracoes["METODOS_EMBEDDING"]
+        tem_bow_ou_tfidf = "bow" in metodos or "tfidf" in metodos
+
+        if tem_bow_ou_tfidf:
+            caminho_artefato = os.path.join(
+                self.configuracoes.get("DIRETORIO_SAIDA", "output"),
+                "artifacts",
+                "fase2_artifact.lpf2",
+            )
+            self._exportar_artefato(caminho_artefato)
+        else:
+            logger.warning("Artefato .lpf2 nao sera gerado: nenhum metodo bow ou tfidf configurado")
+
         logger.info("Treinamento concluido. %d search engines disponiveis.", len(self.motores_busca))
         return self.motores_busca
 
@@ -126,6 +139,42 @@ class PipelineEmbeddings:
         visualizador = VisualizadorTSNE(**params_tsne)
         embeddings_2d = visualizador.fit_transform(vetores)
         visualizador.plot(embeddings_2d, self.titulos_documentos, caminho_saida_tsne, primeiro_metodo, **params_plot_tsne)
+
+    def _exportar_artefato(self, caminho_saida):
+        import sys as _sys
+        _shared_dir = os.path.normpath(
+            os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "shared")
+        )
+        if _shared_dir not in _sys.path:
+            _sys.path.insert(0, _shared_dir)
+        from artifacts import ArtifactFase2
+
+        bow_matrix = None
+        bow_vectorizer = None
+        tfidf_matrix = None
+        tfidf_vectorizer = None
+
+        if "bow" in self.vetorizadores:
+            bow_matrix = self.motores_busca["bow"].doc_vectors
+            bow_vectorizer = self.vetorizadores["bow"].vectorizer
+        if "tfidf" in self.vetorizadores:
+            tfidf_matrix = self.motores_busca["tfidf"].doc_vectors
+            tfidf_vectorizer = self.vetorizadores["tfidf"].vectorizer
+
+        artifact = ArtifactFase2(
+            bow_matrix=bow_matrix,
+            tfidf_matrix=tfidf_matrix,
+            bow_vectorizer=bow_vectorizer,
+            tfidf_vectorizer=tfidf_vectorizer,
+            documentos=self.documentos,
+            titulos=self.titulos_documentos,
+            parametros={
+                "bow": self.configuracoes.get("PARAMS_BOW", {}),
+                "tfidf": self.configuracoes.get("PARAMS_TFIDF", {}),
+            },
+        )
+        artifact.save(caminho_saida)
+        logger.info("Artefato salvo: %s", caminho_saida)
 
     def buscar_texto(self, metodo, texto_consulta, top_k=10):
         if metodo not in self.motores_busca:
