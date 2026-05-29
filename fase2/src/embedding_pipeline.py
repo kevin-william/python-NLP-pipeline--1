@@ -20,11 +20,20 @@ class PipelineEmbeddings:
         self.documentos = []
         self.titulos_documentos = []
         self.documentos_tokenizados = []
+        self._stopwords = frozenset()
 
     def _carregar_e_preparar(self):
         logger.info("Carregando dados de: %s", self.caminho_parquet_entrada)
         dataframe = pd.read_parquet(self.caminho_parquet_entrada)
         logger.info("Parquet carregado: %d linhas, %d colunas", len(dataframe), len(dataframe.columns))
+
+        habilitar_stopwords = self.configuracoes.get("HABILITAR_REMOCAO_STOPWORDS", False)
+        pos_permitidos = self.configuracoes.get("POS_TAGS_PERMITIDOS") or []
+
+        if habilitar_stopwords:
+            from spacy.lang.pt import STOP_WORDS
+            self._stopwords = frozenset(STOP_WORDS)
+            logger.info("Remocao de stopwords habilitada: %d stopwords carregadas", len(self._stopwords))
 
         agrupado = dataframe.groupby("id_artigo")
 
@@ -36,8 +45,20 @@ class PipelineEmbeddings:
             for indice, lema_serie in lemas.items():
                 lema = str(lema_serie).strip().lower()
                 pos = str(grupo.loc[indice, "pos"]) if indice in grupo.index else ""
-                if lema and pos != "PUNCT":
-                    tokens_filtrados.append(lema)
+
+                if not lema:
+                    continue
+
+                if pos_permitidos:
+                    if pos not in pos_permitidos:
+                        continue
+                elif pos == "PUNCT":
+                    continue
+
+                if habilitar_stopwords and lema in self._stopwords:
+                    continue
+
+                tokens_filtrados.append(lema)
 
             texto_documento = " ".join(tokens_filtrados)
             self.documentos.append(texto_documento)
@@ -176,6 +197,14 @@ class PipelineEmbeddings:
         artifact.save(caminho_saida)
         logger.info("Artefato salvo: %s", caminho_saida)
 
+    def _preprocessar_consulta_tokens(self, texto):
+        """Normaliza uma consulta textual: lowercase, split e remocao de stopwords.
+        Nao aplica filtro de POS pois queries nao possuem anotacao morfologica."""
+        tokens = texto.strip().lower().split()
+        if self._stopwords:
+            tokens = [t for t in tokens if t not in self._stopwords]
+        return tokens
+
     def buscar_texto(self, metodo, texto_consulta, top_k=10):
         if metodo not in self.motores_busca:
             logger.warning("Metodo '%s' nao disponivel", metodo)
@@ -186,12 +215,13 @@ class PipelineEmbeddings:
             return []
 
         vetorizador = self.vetorizadores[metodo]
+        tokens_consulta = self._preprocessar_consulta_tokens(texto_consulta)
 
         if metodo == "word2vec":
-            palavras = texto_consulta.strip().lower().split()
-            vetor_consulta = vetorizador.obter_vetor_sentenca(palavras)
+            vetor_consulta = vetorizador.obter_vetor_sentenca(tokens_consulta)
         else:
-            vetor_consulta = vetorizador.transform([texto_consulta])
+            consulta_processada = " ".join(tokens_consulta)
+            vetor_consulta = vetorizador.transform([consulta_processada])
             if hasattr(vetor_consulta, "toarray"):
                 vetor_consulta = vetor_consulta.toarray().flatten()
 

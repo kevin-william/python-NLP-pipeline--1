@@ -10,10 +10,10 @@ DIRETORIO_BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 CAMINHO_ENTRADA = os.path.join(DIRETORIO_BASE, "input", "1100-artigos_wikipedia-formatados.txt")
 DIRETORIO_SAIDA = os.path.join(DIRETORIO_BASE, "output")
-CAMINHO_LOG = os.path.join(DIRETORIO_SAIDA, "nlp_1100-artigos_wikipedia-formatados.log")
-CAMINHO_PARQUET_SAIDA = os.path.join(DIRETORIO_SAIDA, "1100-artigos_wikipedia-formatados.parquet")
-CAMINHO_NUVEM_PALAVRAS = os.path.join(DIRETORIO_SAIDA, "1100-artigos_wikipedia-formatados.png")
-CAMINHO_ANALISE_VOCABULARIO = os.path.join(DIRETORIO_SAIDA, "1100-artigos_wikipedia-formatados.json")
+CAMINHO_LOG = os.path.join(DIRETORIO_SAIDA, "nlp_1100-artigos_wikipedia-formatados-v001.log")
+CAMINHO_PARQUET_SAIDA = os.path.join(DIRETORIO_SAIDA, "1100-artigos_wikipedia-formatados-v001.parquet")
+CAMINHO_NUVEM_PALAVRAS = os.path.join(DIRETORIO_SAIDA, "1100-artigos_wikipedia-formatados-v001.png")
+CAMINHO_ANALISE_VOCABULARIO = os.path.join(DIRETORIO_SAIDA, "1100-artigos_wikipedia-formatados-v001.json")
 
 # CAMINHO_ENTRADA = os.path.join(DIRETORIO_BASE, "input", "artigos_wikipedia.txt")
 # DIRETORIO_SAIDA = os.path.join(DIRETORIO_BASE, "output")
@@ -40,6 +40,12 @@ STOPWORDS_EXTRAS = []
 
 # Filtro de tamanho mínimo: artigos com menos de N palavras são removidos antes do processamento
 MINIMO_PALAVRAS_ARTIGO = 40
+
+# Habilita/desabilita a remocao de stopwords durante a geracao do parquet de saida.
+HABILITAR_REMOCAO_STOPWORDS = True
+
+# POS tags permitidos no parquet de saida (whitelist). Lista vazia desabilita o filtro de POS.
+POS_TAGS_PERMITIDOS = ["NOUN", "VERB", "ADJ", "ADV"]
 
 # ---------------------------------------------------------------------------
 # Configuracao da WordCloud (MVP)

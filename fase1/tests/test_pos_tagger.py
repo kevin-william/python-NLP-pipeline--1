@@ -96,3 +96,61 @@ def test_tipo_tokenizacao_sempre_palavra():
     dataframe = processar_lote_artigos(_ARTIGOS)
     assert (dataframe["tipo_tokenizacao"] == "palavra").all()
 
+
+# ---------------------------------------------------------------------------
+# Testes de filtros: stopwords e POS
+# ---------------------------------------------------------------------------
+
+def test_stopword_removal_habilitado():
+    """Tokens marcados como stopword pelo modelo nao devem aparecer com habilitar_stopwords=True."""
+    artigos = [
+        {
+            "titulo": "Stop",
+            "url": "https://example.com",
+            "conteudo": "O processamento de linguagem natural é uma área fascinante.",
+        }
+    ]
+    dataframe = processar_lote_artigos(artigos, habilitar_stopwords=True, pos_permitidos=[])
+    from preprocessing import obter_stopwords
+    stopwords_atuais = obter_stopwords()
+    tokens_no_df = set(dataframe["token"].str.lower().tolist())
+    assert not tokens_no_df.intersection(stopwords_atuais), (
+        f"Stopwords encontradas no DataFrame: {tokens_no_df.intersection(stopwords_atuais)}"
+    )
+
+
+def test_pos_filter_habilitado():
+    """Somente os POS especificados devem aparecer no DataFrame com pos_permitidos configurado."""
+    artigos = [
+        {
+            "titulo": "POS",
+            "url": "https://example.com",
+            "conteudo": "O gato preto correu rapidamente pelo jardim.",
+        }
+    ]
+    pos_alvo = ["NOUN", "VERB", "ADJ", "ADV"]
+    dataframe = processar_lote_artigos(artigos, habilitar_stopwords=False, pos_permitidos=pos_alvo)
+    pos_no_df = set(dataframe["pos"].unique().tolist())
+    pos_inesperados = pos_no_df - set(pos_alvo)
+    assert not pos_inesperados, f"POS inesperados no DataFrame: {pos_inesperados}"
+    assert len(dataframe) > 0
+
+
+def test_sem_filtros_contem_stopwords():
+    """Sem filtros ativos, stopwords devem aparecer no DataFrame (comportamento original).
+    Nota: PUNCT nunca aparece pois normalizar_texto remove pontuacao antes do spaCy."""
+    artigos = [
+        {
+            "titulo": "Raw",
+            "url": "https://example.com",
+            "conteudo": "O gato preto correu rapidamente",
+        }
+    ]
+    dataframe = processar_lote_artigos(artigos, habilitar_stopwords=False, pos_permitidos=[])
+    from preprocessing import obter_stopwords
+    stopwords_atuais = obter_stopwords()
+    tokens_lower = set(dataframe["token"].str.lower().tolist())
+    assert tokens_lower.intersection(stopwords_atuais), (
+        "Deveria haver stopwords no DataFrame quando habilitar_stopwords=False"
+    )
+

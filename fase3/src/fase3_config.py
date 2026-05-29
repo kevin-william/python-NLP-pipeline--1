@@ -6,7 +6,7 @@ CAMINHO_ARTEFATO_FASE2 = os.path.join(DIRETORIO_BASE, "input", "fase2_artifact.l
 
 DIRETORIO_SAIDA = os.path.join(DIRETORIO_BASE, "output")
 
-CAMINHO_LOG = os.path.join(DIRETORIO_SAIDA, "fase3_pipeline.log")
+CAMINHO_LOG = os.path.join(DIRETORIO_SAIDA, "fase3_pipeline-v001.log")
 
 DIRETORIO_PLOTS = os.path.join(DIRETORIO_SAIDA, "plots")
 
