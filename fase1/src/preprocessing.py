@@ -77,31 +77,29 @@ def remover_stopwords_personalizadas(palavras):
     logger.info("Stopwords customizadas removidas: %s", palavras)
 
 
-def tokenizar_por_tipo(texto_artigo, tipo_tokenizacao='palavra', metodo_processamento='none'):
+def tokenizar_por_tipo(texto_artigo, metodo_processamento='none'):
     """
     Tokeniza um artigo por palavra.
-    O parâmetro tipo_tokenizacao é mantido por compatibilidade, mas nesta etapa
-    a tokenização é sempre por palavra.
 
     Args:
         texto_artigo: Texto do artigo.
-        tipo_tokenizacao: ignorado; sempre usa tokenização por palavra.
         metodo_processamento: 'none', 'lemmatizacao' ou 'stemming'.
 
     Returns:
-        Dicionário com 'tokens' e 'sentencas'.
+        Dicionário com 'tokens'.
     """
     texto_normalizado = normalizar_texto(texto_artigo)
     nlp = obter_instancia_nlp()
     doc = nlp(texto_normalizado)
 
-    sentencas = [sentenca.text for sentenca in doc.sents]
-
     tokens = []
     for token in doc:
         lema = token.lemma_
         if metodo_processamento == 'lemmatizacao':
-            processado = lema
+            # O modelo pt_core_news_lg expande contrações (ex: "do" → "de o").
+            # Lemas com espaço não são filtrados pelas stopwords simples, por isso
+            # fazemos fallback para o token original (forma contraída é stopword válida).
+            processado = token.text if ' ' in lema else lema
         elif metodo_processamento == 'stemming':
             processado = aplicar_stemming(lema)
         else:
@@ -117,23 +115,22 @@ def tokenizar_por_tipo(texto_artigo, tipo_tokenizacao='palavra', metodo_processa
             "eh_pontuacao": token.is_punct,
             "eh_alfabetico": token.is_alpha,
         })
-    return {"tokens": tokens, "sentencas": sentencas}
+    return {"tokens": tokens}
 
 
 def tokenizar_artigo(texto_artigo, metodo_processamento='none'):
     """
     Tokeniza um artigo por palavra com o método de processamento especificado.
-    Atalho para tokenizar_por_tipo com tipo_tokenizacao='palavra'.
 
     Args:
         texto_artigo: Texto do artigo.
         metodo_processamento: Método de processamento ('none', 'lemmatizacao' ou 'stemming').
 
     Returns:
-        Dicionário com 'tokens' e 'sentencas'. Cada token contém o campo 'processado'
+        Dicionário com 'tokens'. Cada token contém o campo 'processado'
         com o valor resultante do método escolhido.
     """
-    return tokenizar_por_tipo(texto_artigo, tipo_tokenizacao='palavra', metodo_processamento=metodo_processamento)
+    return tokenizar_por_tipo(texto_artigo, metodo_processamento=metodo_processamento)
 
 
 def remover_stopwords_dos_tokens(tokens):

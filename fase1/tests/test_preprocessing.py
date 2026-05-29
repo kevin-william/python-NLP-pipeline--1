@@ -50,7 +50,6 @@ def test_tokenizar_artigo_none():
     texto = "O processamento de linguagem natural é fascinante."
     resultado = tokenizar_artigo(texto, metodo_processamento='none')
     assert "tokens" in resultado
-    assert "sentencas" in resultado
     assert len(resultado["tokens"]) > 0
     chaves_token = [
         "texto", "lema", "processado", "pos", "tag", "dependencia",
@@ -88,7 +87,6 @@ def test_tokenizar_artigo_compatibilidade_retroativa():
     texto = "O processamento de linguagem natural é fascinante."
     resultado = tokenizar_artigo(texto)
     assert "tokens" in resultado
-    assert "sentencas" in resultado
 
 
 def test_remover_stopwords_dos_tokens():
@@ -157,22 +155,8 @@ def test_normalizar_texto_remove_underscore():
 
 def test_tokenizar_por_tipo_palavra_retrocompativel():
     texto = "O processamento de linguagem natural é fascinante."
-    resultado_tipo = tokenizar_por_tipo(texto, tipo_tokenizacao='palavra')
+    resultado_tipo = tokenizar_por_tipo(texto)
     resultado_antigo = tokenizar_artigo(texto)
     assert len(resultado_tipo["tokens"]) == len(resultado_antigo["tokens"])
 
-
-def test_tokenizar_por_tipo_sentenca():
-    texto = "O gato correu. O cachorro latiu."
-    resultado = tokenizar_por_tipo(texto, tipo_tokenizacao='sentenca')
-    assert len(resultado["tokens"]) >= 1
-    for token in resultado["tokens"]:
-        assert token["pos"] == "SENT"
-
-
-def test_tokenizar_por_tipo_sentenca_tem_texto():
-    texto = "Linguagem natural é fascinante. Existem muitos métodos."
-    resultado = tokenizar_por_tipo(texto, tipo_tokenizacao='sentenca')
-    for token in resultado["tokens"]:
-        assert len(token["texto"].strip()) > 0
 

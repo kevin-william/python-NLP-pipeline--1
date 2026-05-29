@@ -129,7 +129,7 @@ MODELO_SPACY = "pt_core_news_lg"            # modelo spaCy a usar
 TAMANHO_LOTE = 5                             # artigos por lote (ajuste conforme RAM disponível)
 SEED_ALEATORIO = 42                          # reprodutibilidade
 METODOS_PROCESSAMENTO_TOKENS = ["lemmatizacao", "stemming", "none"]
-TIPOS_TOKENIZACAO = ["palavra"]              # 'palavra', 'bigrama', 'trigrama', 'sentenca'
+TIPOS_TOKENIZACAO = ['palavra']              # 'palavra', 'bigrama', 'trigrama'
 MINIMO_PALAVRAS_ARTIGO = 40                  # artigos com menos palavras são removidos
 STOPWORDS_EXTRAS = []                        # stopwords adicionais além das do spaCy
 
@@ -171,7 +171,7 @@ Todos os arquivos são salvos em `fase1/output/` com sufixo `_{metodo}_{tipo}` p
 id_artigo         – índice do artigo (1-based)
 id_token          – posição do token no documento
 token             – texto original do token (ou n-grama/sentença)
-pos               – classe gramatical universal (NOUN, VERB, ADJ, ... | SENT para sentença)
+pos               – classe gramatical universal (NOUN, VERB, ADJ, ...)
 tag               – etiqueta morfológica detalhada
 lema              – forma lematizada do token
 processado        – token após método configurado (`none`, `lemmatizacao`, `stemming`)

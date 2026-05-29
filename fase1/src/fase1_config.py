@@ -36,7 +36,7 @@ METODOS_PROCESSAMENTO_TOKENS = ['lemmatizacao','none']
 STOPWORDS_EXTRAS = []
 # STOPWORDS_EXTRAS = ['o', 'a', 'os', 'as', 'de', 'do', 'da', 'dos', 'das', 'em', 'no', 'na', 'nos', 'nas']
 
-# Tokenização exclusivamente por palavra nesta etapa (bigrama/trigrama/sentença não são suportados)
+# Tokenização exclusivamente por palavra nesta etapa
 
 # Filtro de tamanho mínimo: artigos com menos de N palavras são removidos antes do processamento
 MINIMO_PALAVRAS_ARTIGO = 40

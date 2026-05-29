@@ -110,8 +110,8 @@ def executar_pipeline_por_metodo(artigos, metodo):
     logger.info("[ETAPA 6] Geracao de WordCloud")
     caminho_saida_nuvem = _construir_caminho_saida(CAMINHO_NUVEM_PALAVRAS, sufixo)
     caminho_saida_nuvem_filtrada = _construir_caminho_saida(CAMINHO_NUVEM_PALAVRAS, f"{sufixo}_filtered")
-    gerar_nuvem_palavras(tokens_filtrados, caminho_saida=caminho_saida_nuvem)
-    gerar_nuvem_palavras(tokens_filtrados, incluir_stopwords=False, caminho_saida=caminho_saida_nuvem_filtrada)
+    gerar_nuvem_palavras(tokens_brutos_info, incluir_stopwords=True, caminho_saida=caminho_saida_nuvem)
+    gerar_nuvem_palavras(tokens_filtrados, caminho_saida=caminho_saida_nuvem_filtrada)
 
     logger.info("Outputs gerados com sufixo '%s'", sufixo)
 

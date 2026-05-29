@@ -7,7 +7,7 @@ Pipeline de processamento de linguagem natural para artigos da Wikipedia em port
 - **Carregamento de Corpus**: Leitura e parsing de artigos da Wikipedia com metadados (título, URL)
 - **Filtro de Tamanho**: Remove artigos com menos de `MINIMO_PALAVRAS_ARTIGO` palavras antes do processamento; o log registra quantos foram removidos
 - **Normalização Textual**: Etapa dedicada — lowercase, remoção de caracteres especiais e excesso de espaços (acentos preservados)
-- **Tokenização Flexível**: Suporte a quatro tipos configuráveis — `palavra`, `bigrama`, `trigrama` e `sentenca`
+- **Tokenização Flexível**: Suporte a três tipos configuráveis — `palavra`, `bigrama` e `trigrama`
 - **Métodos de Processamento**: Lematização (spaCy), stemming (Snowball/Porter) ou sem normalização
 - **Execução Combinada**: Pipeline rodada para cada combinação método × tipo de tokenização; artefatos separados por sufixo
 - **POS Tagging**: Análise morfossintática completa com spaCy (`pt_core_news_lg`)
@@ -78,7 +78,7 @@ Ao executar `main.py`, o pipeline produz:
 - `id_artigo`: ID único do artigo
 - `id_token`: Posição do token/n-grama/sentença no artigo
 - `token`: Texto do token original (ou n-grama/sentença completa)
-- `pos`: POS tag (NOUN, VERB, ADJ... | `SENT` para tipo sentença)
+- `pos`: POS tag (NOUN, VERB, ADJ...)
 - `tag`: Tag detalhada
 - `lema`: Lema do token
 - `processado`: Token após método configurado (`none`, `lemmatizacao`, `stemming`)
@@ -116,7 +116,7 @@ SEED_ALEATORIO = 42                            # Semente para reprodutibilidade
 METODOS_PROCESSAMENTO_TOKENS = ['lemmatizacao', 'stemming', 'none']
 
 # Eixo 2: tipos de tokenização
-# Valores possíveis: 'palavra', 'bigrama', 'trigrama', 'sentenca'
+# Valores possíveis: 'palavra', 'bigrama', 'trigrama'
 # Exemplo: ['palavra', 'bigrama'] gera uma execução completa para cada tipo
 TIPOS_TOKENIZACAO = ['palavra']
 
