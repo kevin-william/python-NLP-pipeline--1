@@ -10,6 +10,8 @@ anotado da Fase 1 e o artefato `.lpf2` da Fase 2.
   expressões regulares (mesmas da Aula 07 do professor)
 - **NER com spaCy** — extração de entidades nomeadas (PERSON, ORG, GPE, DATE)
   com contagem por tipo e visualização com displaCy
+- **NER customizado** — ciclo de anotação, treino e avaliação de modelo NER
+  personalizado com spaCy, com exportação de métricas (precision, recall, F1)
 - **Fuzzy matching com Levenshtein** — normalização de entidades para agrupar
   variações ortográficas da mesma entidade
 - **Extração de relações SVO** — triplas sujeito-verbo-objeto a partir de
@@ -27,9 +29,16 @@ fase4/
 ├── output/
 │   ├── plots/                          # gráficos e visualizações
 │   ├── displacy/                       # renderizações HTML do displaCy
+│   ├── ner_customizado/                # modelo NER treinado e métricas
+│   │   ├── modelo_ner/                 # artefato do modelo spaCy
+│   │   └── metricas_avaliacao.json     # precision, recall, F1
 │   ├── grafo_edges.csv                 # arestas do grafo exportadas
-│   ├── entidades_extraidas.csv         # entidades e padrões extraídos
+│   ├── nos_grafo.csv                   # nós do grafo com atributos
+│   ├── entidades_extraidas.csv         # entidades NER extraídas do corpus
 │   ├── fuzzy_matches.csv               # resultado do Levenshtein
+│   ├── relacoes_extraidas.csv          # triplas SVO extraídas
+│   ├── resumo_metricas.json            # métricas consolidadas da execução
+│   ├── relatorio_interpretativo.txt    # resposta à pergunta analítica
 │   └── fase4_pipeline.log
 ├── src/
 │   ├── fase4_config.py                 # constantes e caminhos
@@ -38,6 +47,7 @@ fase4/
 │   ├── extracao_padroes.py             # regex: emails, URLs, datas, CPFs
 │   ├── fuzzy_matching.py               # Levenshtein para entidades
 │   ├── ner_analysis.py                 # NER spaCy + displaCy
+│   ├── ner_customizado.py              # treino, avaliação e exportação de NER customizado
 │   ├── relacoes.py                     # extração de relações SVO
 │   ├── grafo_conhecimento.py           # NetworkX: construção, centralidade
 │   └── visualizacao_grafo.py           # matplotlib/PyVis para grafo
@@ -45,8 +55,10 @@ fase4/
 │   ├── test_extracao_padroes.py
 │   ├── test_fuzzy_matching.py
 │   ├── test_ner_analysis.py
+│   ├── test_ner_customizado.py
 │   ├── test_relacoes.py
-│   └── test_grafo_conhecimento.py
+│   ├── test_grafo_conhecimento.py
+│   └── test_pipeline.py
 ├── requirements.txt
 ├── readme.md
 └── plan.md
@@ -125,10 +137,17 @@ python -m pytest fase4/tests -q
 
 | Arquivo | Descrição |
 |---|---|
+| Arquivo | Descrição |
+|---|---|
 | `output/fase4_pipeline.log` | log detalhado da execução |
-| `output/entidades_extraidas.csv` | entidades e padrões extraídos do corpus |
+| `output/entidades_extraidas.csv` | entidades NER extraídas do corpus |
 | `output/fuzzy_matches.csv` | resultado da normalização fuzzy das entidades |
+| `output/relacoes_extraidas.csv` | triplas SVO extraídas |
 | `output/grafo_edges.csv` | arestas do grafo de conhecimento |
+| `output/nos_grafo.csv` | nós do grafo com tipo, frequência e centralidade |
+| `output/resumo_metricas.json` | métricas consolidadas da execução |
+| `output/relatorio_interpretativo.txt` | resposta textual à pergunta analítica |
+| `output/ner_customizado/metricas_avaliacao.json` | precision, recall e F1 do modelo customizado |
 | `output/plots/grafo_conhecimento.png` | visualização do grafo com matplotlib |
 | `output/plots/centralidade_entidades.png` | distribuição de centralidade das entidades |
 | `output/plots/top_entidades_por_tipo.png` | top entidades frequentes por tipo |
@@ -142,6 +161,7 @@ python -m pytest fase4/tests -q
 | Fuzzy matching | `python-Levenshtein` | Biblioteca usada pelo professor na Aula 07 |
 | NER | `spaCy` (`pt_core_news_lg`) | Modelo já utilizado nas Fases 1-3 |
 | Visualização NER | `displacy` | Ferramenta nativa do spaCy, mostrada na Aula 08 |
+| NER customizado | `spaCy` (ciclo treino/avaliação) | Anotação manual + `nlp.resume_training()` para fine-tuning |
 | Extração de relações | `spaCy` (dependências sintáticas) | Abordagem do professor (Aula 07, linhas 684-700) |
 | Grafo de conhecimento | `NetworkX` | Biblioteca padrão para grafos em Python |
 | Visualização do grafo | `matplotlib` + `PyVis` (opcional) | Estático + interativo |
