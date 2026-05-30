@@ -229,6 +229,7 @@ class PipelineEmbeddings:
             tfidf_vectorizer=tfidf_vectorizer,
             documentos=self.documentos,
             titulos=self.titulos_documentos,
+            tokens=self.documentos_tokenizados,
             parametros={
                 "bow": self.configuracoes.get("PARAMS_BOW", {}),
                 "tfidf": self.configuracoes.get("PARAMS_TFIDF", {}),

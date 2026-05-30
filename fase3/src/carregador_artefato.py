@@ -51,6 +51,6 @@ def carregar_artefato_fase2(caminho):
     if obj.bow_matrix is not None:
         logger.info("Shape BoW matrix: %s", obj.bow_matrix.shape)
     else:
-        logger.info("BoW matrix nao disponivel no artefato (sera reconstruida para LDA)")
+        logger.info("BoW matrix nao disponivel no artefato")
 
     return obj

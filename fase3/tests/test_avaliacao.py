@@ -23,50 +23,52 @@ class TestAvaliacao:
         ]
 
     @pytest.fixture
-    def documentos_teste(self):
+    def tokens_teste(self):
         return [
-            "machine learning algorithm data science",
-            "deep learning neural network model",
-            "natural language processing text analysis",
-            "machine neural language system",
-            "deep learning algorithm optimization",
+            ["machine", "learning", "algorithm", "data", "science"],
+            ["deep", "learning", "neural", "network", "model"],
+            ["natural", "language", "processing", "text", "analysis"],
+            ["machine", "neural", "language", "system"],
+            ["deep", "learning", "algorithm", "optimization"],
         ]
 
-    def test_coerencia_entre_0_e_1(self, topicos_teste, documentos_teste):
-        from avaliacao import calcular_coerencia_top_n
+    def test_coerencia_retorna_float(self, topicos_teste, tokens_teste):
+        from avaliacao import calcular_coerencia_gensim
 
-        coef = calcular_coerencia_top_n(topicos_teste, documentos_teste)
-        assert 0.0 <= coef <= 1.0
+        coef = calcular_coerencia_gensim(topicos_teste, tokens_teste)
+        assert isinstance(coef, float)
 
-    def test_coerencia_documentos_vazios_retorna_zero(self):
-        from avaliacao import calcular_coerencia_top_n
+    def test_coerencia_topicos_vazios_retorna_zero(self, tokens_teste):
+        from avaliacao import calcular_coerencia_gensim
 
-        coef = calcular_coerencia_top_n([["a", "b"]], [])
+        coef = calcular_coerencia_gensim([], tokens_teste)
         assert coef == 0.0
 
-    def test_coerencia_topicos_vazios_retorna_zero(self):
-        from avaliacao import calcular_coerencia_top_n
+    def test_coerencia_tokens_vazios_retorna_zero(self, topicos_teste):
+        from avaliacao import calcular_coerencia_gensim
 
-        coef = calcular_coerencia_top_n([], ["doc1", "doc2"])
+        coef = calcular_coerencia_gensim(topicos_teste, [])
         assert coef == 0.0
 
-    def test_comparar_modelos_retorna_dataframe_com_3_linhas(self, topicos_teste, documentos_teste):
-        from avaliacao import calcular_coerencia_top_n, comparar_modelos
+    def test_comparar_modelos_retorna_dataframe_com_3_linhas(self, topicos_teste, tokens_teste):
+        from avaliacao import calcular_coerencia_gensim, comparar_modelos
+
+        coef = calcular_coerencia_gensim(topicos_teste, tokens_teste)
 
         resultados = {
             "LSA": {
                 "num_topicos": 5,
-                "coerencia": calcular_coerencia_top_n(topicos_teste, documentos_teste),
+                "coerencia": coef,
                 "perplexidade": None,
             },
             "LDA": {
                 "num_topicos": 5,
-                "coerencia": calcular_coerencia_top_n(topicos_teste, documentos_teste),
-                "perplexidade": 1234.5,
+                "coerencia": coef,
+                "perplexidade": -7.5,
             },
             "NMF": {
                 "num_topicos": 5,
-                "coerencia": calcular_coerencia_top_n(topicos_teste, documentos_teste),
+                "coerencia": coef,
                 "perplexidade": None,
             },
         }

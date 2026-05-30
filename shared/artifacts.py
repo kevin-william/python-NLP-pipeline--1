@@ -23,6 +23,7 @@ class ArtifactFase2:
     tfidf_matrix: Optional[csr_matrix] = field(default=None)
     bow_vectorizer: Optional[CountVectorizer] = field(default=None)
     tfidf_vectorizer: Optional[TfidfVectorizer] = field(default=None)
+    tokens: Optional[List[List[str]]] = field(default=None)
 
     def save(self, path: str) -> None:
         """Serializa o artefato para o caminho indicado usando joblib."""

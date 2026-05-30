@@ -1,3 +1,4 @@
+import math
 import os
 
 import matplotlib
@@ -104,3 +105,72 @@ def plotar_comparacao_metricas(dataframe_comparacao, diretorio_saida):
     fig.savefig(caminho, dpi=150)
     plt.close(fig)
     logger.info("Grafico salvo: %s", caminho)
+
+
+def plotar_wordcloud_topicos(topicos_com_pesos, nome_modelo, diretorio_saida):
+    """Gera uma grade de WordClouds, uma por tópico, com palavras ponderadas pelos pesos.
+
+    Parametros
+    ----------
+    topicos_com_pesos : List[List[Tuple[str, float]]]
+        Cada elemento eh uma lista de (palavra, peso) para um topico.
+    nome_modelo : str
+        Identificador do modelo (usado no nome do arquivo de saida).
+    diretorio_saida : str
+        Diretório onde o PNG sera salvo.
+    """
+    from wordcloud import WordCloud
+
+    os.makedirs(diretorio_saida, exist_ok=True)
+
+    n_topicos = len(topicos_com_pesos)
+    n_cols = min(3, n_topicos)
+    n_rows = math.ceil(n_topicos / n_cols)
+
+    fig, axes = plt.subplots(n_rows, n_cols, figsize=(6 * n_cols, 4 * n_rows))
+    axes = np.atleast_1d(axes).flatten()
+
+    for idx, topico in enumerate(topicos_com_pesos):
+        ax = axes[idx]
+        freq = {palavra: max(peso, 1e-6) for palavra, peso in topico}
+        wc = WordCloud(
+            background_color="white",
+            width=800,
+            height=600,
+            collocations=False,
+            prefer_horizontal=1.0,
+        ).generate_from_frequencies(freq)
+        ax.imshow(wc, interpolation="bilinear")
+        ax.axis("off")
+        ax.set_title(f"Topico {idx + 1}", fontsize=11)
+
+    for idx in range(n_topicos, len(axes)):
+        axes[idx].set_visible(False)
+
+    fig.suptitle(f"WordCloud por Topico — {nome_modelo.upper()}", fontsize=14)
+    fig.tight_layout(rect=[0, 0, 1, 0.95])
+    caminho = os.path.join(diretorio_saida, f"{nome_modelo}_wordcloud_topicos.png")
+    fig.savefig(caminho, dpi=150)
+    plt.close(fig)
+    logger.info("Grafico salvo: %s", caminho)
+
+
+def gerar_pylda_vis(lda_model, corpus, dictionary, diretorio_saida):
+    """Gera visualização interativa pyLDAvis para um modelo LDA Gensim.
+
+    Parametros
+    ----------
+    lda_model : gensim.models.LdaModel
+    corpus : list — BoW corpus no formato Gensim (lista de lista de tuplas).
+    dictionary : gensim.corpora.Dictionary
+    diretorio_saida : str
+    """
+    import pyLDAvis
+    import pyLDAvis.gensim_models as gensimvis
+
+    os.makedirs(diretorio_saida, exist_ok=True)
+
+    vis = gensimvis.prepare(lda_model, corpus, dictionary, sort_topics=False)
+    caminho_html = os.path.join(diretorio_saida, "lda_pyldavis.html")
+    pyLDAvis.save_html(vis, caminho_html)
+    logger.info("pyLDAvis salvo: %s", caminho_html)

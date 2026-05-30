@@ -16,11 +16,18 @@ TOP_N_PALAVRAS = 10
 
 PARAMS_LSA = {"random_state": 42}
 
-PARAMS_LDA = {
-    "max_iter": 20,
-    "learning_method": "online",
+PARAMS_LDA_GENSIM = {
+    "passes": 20,
+    "iterations": 1000,
+    "alpha": "auto",
+    "eta": "auto",
     "random_state": 42,
-    "n_jobs": -1,
+}
+
+PARAMS_DICTIONARY = {
+    "no_below": 3,
+    "no_above": 0.80,
+    "keep_n": 1000,
 }
 
 PARAMS_NMF = {
@@ -28,5 +35,3 @@ PARAMS_NMF = {
     "random_state": 42,
     "max_iter": 500,
 }
-
-PARAMS_BOW_RECONSTRUCAO = {"max_features": 5000, "min_df": 1}

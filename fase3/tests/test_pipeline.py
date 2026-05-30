@@ -12,11 +12,13 @@ sys.path.insert(0, os.path.join(_TESTS_DIR, "..", ".."))
 
 import numpy as np
 import pytest
-from scipy.sparse import csr_matrix
-from sklearn.feature_extraction.text import CountVectorizer, TfidfVectorizer
+from sklearn.feature_extraction.text import TfidfVectorizer, CountVectorizer
 from shared.artifacts import ArtifactFase2
 
-from fase3_config import NUM_TOPICOS, PARAMS_LSA, PARAMS_LDA, PARAMS_NMF
+from fase3_config import NUM_TOPICOS, PARAMS_LSA, PARAMS_LDA_GENSIM, PARAMS_NMF
+
+_PARAMS_DICT_TESTE = dict(no_below=1, no_above=1.0, keep_n=200)
+_PARAMS_LDA_TESTE = {"passes": 2, "iterations": 10, "random_state": 42}
 
 
 def criar_artefato_sintetico(n_docs=30):
@@ -33,8 +35,8 @@ def criar_artefato_sintetico(n_docs=30):
         "cybersecurity encryption network security data",
     ]
     docs = (base_docs * ((n_docs // len(base_docs)) + 1))[:n_docs]
-
     titulos = [f"Article {i}" for i in range(n_docs)]
+    tokens = [doc.split() for doc in docs]
 
     vectorizer = TfidfVectorizer(max_features=50)
     tfidf_matrix = vectorizer.fit_transform(docs)
@@ -45,6 +47,7 @@ def criar_artefato_sintetico(n_docs=30):
     return ArtifactFase2(
         documentos=docs,
         titulos=titulos,
+        tokens=tokens,
         parametros={"bow": {"max_features": 50}, "tfidf": {"max_features": 50}},
         bow_matrix=bow_matrix,
         tfidf_matrix=tfidf_matrix,
@@ -68,6 +71,7 @@ class TestPipeline:
         from carregador_artefato import carregar_artefato_fase2
         carregado = carregar_artefato_fase2(caminho_artefato)
         assert len(carregado.documentos) == 15
+        assert carregado.tokens is not None
 
         # 2. EDA
         from eda import executar_eda
@@ -75,40 +79,42 @@ class TestPipeline:
         assert metricas["num_documentos"] == 15
         assert metricas["tamanho_vocabulario"] > 0
 
-        # 3. Treinar modelos
+        # 3. Tokens
+        tokens = carregado.tokens
+
+        # 4. Treinar modelos
         vocabulario = carregado.tfidf_vectorizer.get_feature_names_out().tolist()
-        vocabulario_bow = carregado.bow_vectorizer.get_feature_names_out().tolist()
 
         from modelos_topicos import ModeloLSA, ModeloLDA, ModeloNMF
-        from avaliacao import calcular_coerencia_top_n, comparar_modelos
+        from avaliacao import calcular_coerencia_gensim, comparar_modelos
 
         # LSA
         lsa = ModeloLSA(NUM_TOPICOS, PARAMS_LSA)
         lsa.treinar(carregado.tfidf_matrix)
         topicos_lsa = lsa.obter_topicos(vocabulario, 5)
 
-        # LDA
-        lda = ModeloLDA(NUM_TOPICOS, PARAMS_LDA)
-        lda.treinar(carregado.bow_matrix)
-        topicos_lda = lda.obter_topicos(vocabulario_bow, 5)
-        perplexidade = lda.obter_perplexidade(carregado.bow_matrix)
+        # LDA Gensim
+        lda = ModeloLDA(NUM_TOPICOS, _PARAMS_LDA_TESTE)
+        lda.treinar(tokens, **_PARAMS_DICT_TESTE)
+        topicos_lda = lda.obter_topicos(top_n=5)
+        perplexidade = lda.obter_perplexidade()
 
         # NMF
         nmf = ModeloNMF(NUM_TOPICOS, PARAMS_NMF)
         nmf.treinar(carregado.tfidf_matrix)
         topicos_nmf = nmf.obter_topicos(vocabulario, 5)
 
-        # 4. Avaliar
-        coef_lsa = calcular_coerencia_top_n(topicos_lsa, carregado.documentos)
-        coef_lda = calcular_coerencia_top_n(topicos_lda, carregado.documentos)
-        coef_nmf = calcular_coerencia_top_n(topicos_nmf, carregado.documentos)
+        # 5. Avaliar
+        coef_lsa = calcular_coerencia_gensim(topicos_lsa, tokens)
+        coef_lda = lda.obter_coerencia()
+        coef_nmf = calcular_coerencia_gensim(topicos_nmf, tokens)
 
-        assert 0.0 <= coef_lsa <= 1.0
-        assert 0.0 <= coef_lda <= 1.0
-        assert 0.0 <= coef_nmf <= 1.0
+        assert isinstance(coef_lsa, float)
+        assert isinstance(coef_lda, float)
+        assert isinstance(coef_nmf, float)
         assert isinstance(perplexidade, float)
 
-        # 5. DataFrame comparacao
+        # 6. DataFrame comparação
         resultados = {
             "LSA": {"num_topicos": NUM_TOPICOS, "coerencia": coef_lsa, "perplexidade": None},
             "LDA": {"num_topicos": NUM_TOPICOS, "coerencia": coef_lda, "perplexidade": perplexidade},
@@ -118,15 +124,16 @@ class TestPipeline:
         assert len(df) == 3
         assert list(df.columns) == ["modelo", "num_topicos", "coerencia_media", "perplexidade"]
 
-        # 6. Visualizacoes
+        # 7. Visualizações
         from visualizacao import (
             plotar_top_palavras_por_topico,
             plotar_distribuicao_topicos_documentos,
             plotar_comparacao_metricas,
+            plotar_wordcloud_topicos,
         )
 
         plotar_top_palavras_por_topico(lsa.obter_topicos_com_pesos(vocabulario, 5), "lsa", diretorio_plots)
-        plotar_top_palavras_por_topico(lda.obter_topicos_com_pesos(vocabulario_bow, 5), "lda", diretorio_plots)
+        plotar_top_palavras_por_topico(lda.obter_topicos_com_pesos(top_n=5), "lda", diretorio_plots)
         plotar_top_palavras_por_topico(nmf.obter_topicos_com_pesos(vocabulario, 5), "nmf", diretorio_plots)
 
         plotar_distribuicao_topicos_documentos(lsa.obter_distribuicao_documentos(),
@@ -138,7 +145,11 @@ class TestPipeline:
 
         plotar_comparacao_metricas(df, diretorio_plots)
 
-        # Verificar arquivos gerados
+        plotar_wordcloud_topicos(lsa.obter_topicos_com_pesos(vocabulario, 5), "lsa", diretorio_plots)
+        plotar_wordcloud_topicos(lda.obter_topicos_com_pesos(top_n=5), "lda", diretorio_plots)
+        plotar_wordcloud_topicos(nmf.obter_topicos_com_pesos(vocabulario, 5), "nmf", diretorio_plots)
+
+        # 8. Verificar arquivos gerados
         assert os.path.exists(os.path.join(diretorio_plots, "lsa_topicos.png"))
         assert os.path.exists(os.path.join(diretorio_plots, "lda_topicos.png"))
         assert os.path.exists(os.path.join(diretorio_plots, "nmf_topicos.png"))
@@ -146,6 +157,9 @@ class TestPipeline:
         assert os.path.exists(os.path.join(diretorio_plots, "lda_heatmap.png"))
         assert os.path.exists(os.path.join(diretorio_plots, "nmf_heatmap.png"))
         assert os.path.exists(os.path.join(diretorio_plots, "comparacao_coerencia.png"))
+        assert os.path.exists(os.path.join(diretorio_plots, "lsa_wordcloud_topicos.png"))
+        assert os.path.exists(os.path.join(diretorio_plots, "lda_wordcloud_topicos.png"))
+        assert os.path.exists(os.path.join(diretorio_plots, "nmf_wordcloud_topicos.png"))
 
     def test_integracao_carregador_eda_modelos(self, tmp_path):
         artefato = criar_artefato_sintetico(n_docs=10)
@@ -159,32 +173,33 @@ class TestPipeline:
 
         # EDA
         from eda import executar_eda
-        metricas = executar_eda(carregado.documentos, carregado.titulos, str(tmp_path))
+        executar_eda(carregado.documentos, carregado.titulos, str(tmp_path))
+
+        tokens = carregado.tokens
 
         # Modelos
         from modelos_topicos import ModeloLSA, ModeloLDA, ModeloNMF
 
         vocabulario = carregado.tfidf_vectorizer.get_feature_names_out().tolist()
-        vocabulario_bow = carregado.bow_vectorizer.get_feature_names_out().tolist()
 
         lsa = ModeloLSA(5, {"random_state": 42})
         lsa.treinar(carregado.tfidf_matrix)
         assert lsa.obter_distribuicao_documentos().shape[0] == 10
 
-        lda = ModeloLDA(5, {"max_iter": 5, "random_state": 42})
-        lda.treinar(carregado.bow_matrix)
+        lda = ModeloLDA(5, _PARAMS_LDA_TESTE)
+        lda.treinar(tokens, **_PARAMS_DICT_TESTE)
         assert lda.obter_distribuicao_documentos().shape[0] == 10
-        assert lda.obter_perplexidade(carregado.bow_matrix) >= 0
+        assert isinstance(lda.obter_perplexidade(), float)
 
         nmf = ModeloNMF(5, {"random_state": 42})
         nmf.treinar(carregado.tfidf_matrix)
         assert nmf.obter_distribuicao_documentos().shape[0] == 10
 
         topicos_lsa = lsa.obter_topicos(vocabulario, 5)
-        topicos_lda = lda.obter_topicos(vocabulario_bow, 5)
+        topicos_lda = lda.obter_topicos(top_n=5)
         topicos_nmf = nmf.obter_topicos(vocabulario, 5)
 
-        from avaliacao import calcular_coerencia_top_n
-        assert 0.0 <= calcular_coerencia_top_n(topicos_lsa, carregado.documentos) <= 1.0
-        assert 0.0 <= calcular_coerencia_top_n(topicos_lda, carregado.documentos) <= 1.0
-        assert 0.0 <= calcular_coerencia_top_n(topicos_nmf, carregado.documentos) <= 1.0
+        from avaliacao import calcular_coerencia_gensim
+        assert isinstance(calcular_coerencia_gensim(topicos_lsa, tokens), float)
+        assert isinstance(lda.obter_coerencia(), float)
+        assert isinstance(calcular_coerencia_gensim(topicos_nmf, tokens), float)

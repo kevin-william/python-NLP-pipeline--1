@@ -12,20 +12,22 @@ from fase3_config import (
     DIRETORIO_SAIDA,
     NUM_TOPICOS,
     PARAMS_LSA,
-    PARAMS_LDA,
+    PARAMS_LDA_GENSIM,
+    PARAMS_DICTIONARY,
     PARAMS_NMF,
-    PARAMS_BOW_RECONSTRUCAO,
     TOP_N_PALAVRAS,
 )
 from logger import inicializar_sistema_log
 from carregador_artefato import carregar_artefato_fase2
 from eda import executar_eda
 from modelos_topicos import ModeloLSA, ModeloLDA, ModeloNMF
-from avaliacao import calcular_coerencia_top_n, comparar_modelos
+from avaliacao import calcular_coerencia_gensim, comparar_modelos
 from visualizacao import (
     plotar_top_palavras_por_topico,
     plotar_distribuicao_topicos_documentos,
     plotar_comparacao_metricas,
+    plotar_wordcloud_topicos,
+    gerar_pylda_vis,
 )
 
 os.makedirs(DIRETORIO_SAIDA, exist_ok=True)
@@ -43,14 +45,22 @@ def executar_fase3_principal():
     logger.info("--- Etapa 1: Carregando artefato ---")
     artefato = carregar_artefato_fase2(CAMINHO_ARTEFATO_FASE2)
 
-    # 2. EDA
+    # 2. Tokens para LDA Gensim e coerência
+    if artefato.tokens is not None:
+        tokens = artefato.tokens
+        logger.info("Tokens carregados do artefato: %d documentos", len(tokens))
+    else:
+        logger.info("Campo tokens nao disponivel no artefato — usando fallback (split)")
+        tokens = [doc.split() for doc in artefato.documentos]
+
+    # 3. EDA
     logger.info("--- Etapa 2: Analise Exploratoria ---")
     metricas_eda = executar_eda(artefato.documentos, artefato.titulos, DIRETORIO_PLOTS)
 
-    # 3. Obter vocabulario da matriz TF-IDF
+    # 4. Vocabulário TF-IDF (para LSA e NMF)
     vocabulario = artefato.tfidf_vectorizer.get_feature_names_out().tolist()
 
-    # 4. Treinar modelos
+    # 5. Treinar modelos
     logger.info("--- Etapa 3: Treinando modelos de topicos ---")
 
     # LSA
@@ -60,27 +70,14 @@ def executar_fase3_principal():
     topicos_lsa_com_pesos = lsa.obter_topicos_com_pesos(vocabulario, TOP_N_PALAVRAS)
     logger.info("Topicos LSA: %s", topicos_lsa)
 
-    # LDA (usa BoW matrix; reconstrói se necessario)
-    lda = ModeloLDA(NUM_TOPICOS, PARAMS_LDA)
-    matriz_bow = artefato.bow_matrix
-    if matriz_bow is None:
-        logger.info("Reconstruindo matriz BoW para LDA via CountVectorizer")
-        from sklearn.feature_extraction.text import CountVectorizer
-        cv = CountVectorizer(**PARAMS_BOW_RECONSTRUCAO)
-        matriz_bow = cv.fit_transform(artefato.documentos)
-        vocabulario_bow = cv.get_feature_names_out().tolist()
-        lda.treinar(matriz_bow)
-        topicos_lda = lda.obter_topicos(vocabulario_bow, TOP_N_PALAVRAS)
-        topicos_lda_com_pesos = lda.obter_topicos_com_pesos(vocabulario_bow, TOP_N_PALAVRAS)
-        perplexidade = lda.obter_perplexidade(matriz_bow)
-    else:
-        vocabulario_bow = artefato.bow_vectorizer.get_feature_names_out().tolist()
-        lda.treinar(matriz_bow)
-        topicos_lda = lda.obter_topicos(vocabulario_bow, TOP_N_PALAVRAS)
-        topicos_lda_com_pesos = lda.obter_topicos_com_pesos(vocabulario_bow, TOP_N_PALAVRAS)
-        perplexidade = lda.obter_perplexidade(matriz_bow)
+    # LDA Gensim
+    lda = ModeloLDA(NUM_TOPICOS, PARAMS_LDA_GENSIM)
+    lda.treinar(tokens, **PARAMS_DICTIONARY)
+    topicos_lda = lda.obter_topicos(TOP_N_PALAVRAS)
+    topicos_lda_com_pesos = lda.obter_topicos_com_pesos(TOP_N_PALAVRAS)
+    perplexidade = lda.obter_perplexidade()
     logger.info("Topicos LDA: %s", topicos_lda)
-    logger.info("Perplexidade LDA: %.4f", perplexidade)
+    logger.info("Perplexidade LDA (log): %.4f", perplexidade)
 
     # NMF
     nmf = ModeloNMF(NUM_TOPICOS, PARAMS_NMF)
@@ -89,11 +86,11 @@ def executar_fase3_principal():
     topicos_nmf_com_pesos = nmf.obter_topicos_com_pesos(vocabulario, TOP_N_PALAVRAS)
     logger.info("Topicos NMF: %s", topicos_nmf)
 
-    # 5. Avaliacao
+    # 6. Avaliacao
     logger.info("--- Etapa 4: Avaliando modelos ---")
-    coerencia_lsa = calcular_coerencia_top_n(topicos_lsa, artefato.documentos)
-    coerencia_lda = calcular_coerencia_top_n(topicos_lda, artefato.documentos)
-    coerencia_nmf = calcular_coerencia_top_n(topicos_nmf, artefato.documentos)
+    coerencia_lsa = calcular_coerencia_gensim(topicos_lsa, tokens)
+    coerencia_lda = lda.obter_coerencia()
+    coerencia_nmf = calcular_coerencia_gensim(topicos_nmf, tokens)
 
     logger.info("Coerencia LSA: %.4f", coerencia_lsa)
     logger.info("Coerencia LDA: %.4f", coerencia_lda)
@@ -110,7 +107,7 @@ def executar_fase3_principal():
     dataframe.to_csv(caminho_csv, index=False, encoding="utf-8")
     logger.info("Tabela comparativa salva em: %s", caminho_csv)
 
-    # 6. Visualizacoes
+    # 7. Visualizacoes
     logger.info("--- Etapa 5: Gerando visualizacoes ---")
 
     plotar_top_palavras_por_topico(topicos_lsa_com_pesos, "lsa", DIRETORIO_PLOTS)
@@ -125,6 +122,12 @@ def executar_fase3_principal():
                                            artefato.titulos, "nmf", DIRETORIO_PLOTS)
 
     plotar_comparacao_metricas(dataframe, DIRETORIO_PLOTS)
+
+    plotar_wordcloud_topicos(topicos_lsa_com_pesos, "lsa", DIRETORIO_PLOTS)
+    plotar_wordcloud_topicos(topicos_lda_com_pesos, "lda", DIRETORIO_PLOTS)
+    plotar_wordcloud_topicos(topicos_nmf_com_pesos, "nmf", DIRETORIO_PLOTS)
+
+    gerar_pylda_vis(lda.obter_modelo(), lda.obter_corpus(), lda.obter_dictionary(), DIRETORIO_PLOTS)
 
     # Sumario final
     logger.info("=" * 60)
