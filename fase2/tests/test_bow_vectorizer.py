@@ -35,3 +35,25 @@ class TestVetorizadorBow:
     def test_get_feature_names_before_fit(self):
         bow = VetorizadorBow()
         assert bow.get_feature_names() == []
+
+    def test_stop_words_excludes_term(self):
+        docs = ["python e uma linguagem", "python java ruby"]
+        bow = VetorizadorBow(stop_words=["python"])
+        matrix = bow.fit_transform(docs)
+        features = list(bow.get_feature_names())
+        assert "python" not in features
+
+    def test_max_df_excludes_frequent_terms(self):
+        docs = ["python e bom", "python e rapido", "python e util"]
+        # "python" e "e" aparecem em 100% dos docs; max_df=0.5 deve remove-los
+        bow = VetorizadorBow(max_df=0.5)
+        matrix = bow.fit_transform(docs)
+        features = list(bow.get_feature_names())
+        assert "python" not in features
+
+    def test_max_df_default_keeps_frequent_terms(self):
+        docs = ["python e bom", "python e rapido"]
+        bow = VetorizadorBow(max_df=1.0)
+        bow.fit_transform(docs)
+        features = list(bow.get_feature_names())
+        assert "python" in features

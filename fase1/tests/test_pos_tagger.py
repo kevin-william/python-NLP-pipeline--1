@@ -20,7 +20,7 @@ def test_processar_lote_artigos():
     colunas_esperadas = [
         "id_artigo", "id_token", "token", "pos", "tag",
         "lema", "processado", "relacao_dependencia", "token_cabeca", "entidade", "rotulo_entidade",
-        "tipo_tokenizacao", "titulo", "url",
+        "tipo_tokenizacao", "titulo", "url", "formato",
     ]
     for coluna in colunas_esperadas:
         assert coluna in dataframe.columns, f"Coluna '{coluna}' ausente"

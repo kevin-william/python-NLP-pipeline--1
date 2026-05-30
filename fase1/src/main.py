@@ -1,5 +1,6 @@
 ﻿import sys
 import os
+import pandas as pd
 
 DIRETORIO_SCRIPT = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, DIRETORIO_SCRIPT)
@@ -9,12 +10,13 @@ from fase1_config import (
     CAMINHO_PARQUET_SAIDA,
     CAMINHO_NUVEM_PALAVRAS,
     CAMINHO_ANALISE_VOCABULARIO,
+    CAMINHO_TABELA_COMPARACAO,
     DIRETORIO_SAIDA,
     METODOS_PROCESSAMENTO_TOKENS,
 )
 from logger import inicializar_sistema_log
 from corpus_loader import carregar_artigos, obter_estatisticas_corpus, filtrar_artigos_por_tamanho
-from preprocessing import obter_stopwords
+from preprocessing import obter_stopwords, inicializar_nltk, gerar_tabela_comparacao_stemming_lematizacao
 from pos_tagger import processar_lote_artigos
 from wordcloud_gen import gerar_nuvem_palavras
 from vocab_analysis import (
@@ -121,6 +123,9 @@ def executar_pipeline_principal():
     logger.info("INICIANDO PIPELINE DE NLP - Wikipedia Articles")
     logger.info("=" * 60)
 
+    # Inicializar recursos NLTK (downloads automáticos se ausentes)
+    inicializar_nltk()
+
     # Etapa 1: Carregar corpus
     logger.info("[ETAPA 1] Carregamento e inspecao do corpus")
     artigos = carregar_artigos()
@@ -134,6 +139,17 @@ def executar_pipeline_principal():
 
     # Executar pipeline para cada método de processamento
     logger.info("Metodos de processamento: %s", METODOS_PROCESSAMENTO_TOKENS)
+
+    # Etapa de Comparação: tabela stemming vs lematização (todos os artigos)
+    logger.info("[ETAPA COMPARACAO] Gerando tabela stemming vs lematizacao para todos os artigos")
+    fragmentos = [
+        gerar_tabela_comparacao_stemming_lematizacao(artigo["conteudo"])
+        for artigo in artigos
+    ]
+    tabela_comparacao = pd.concat(fragmentos, ignore_index=True)
+    tabela_comparacao.to_csv(CAMINHO_TABELA_COMPARACAO, index=False, encoding='utf-8')
+    logger.info("Tabela de comparacao salva: %s (%d linhas)", CAMINHO_TABELA_COMPARACAO, len(tabela_comparacao))
+
     for metodo in METODOS_PROCESSAMENTO_TOKENS:
         executar_pipeline_por_metodo(artigos, metodo)
 

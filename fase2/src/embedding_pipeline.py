@@ -5,8 +5,10 @@ from logger import inicializar_sistema_log
 from vectorizers.bow_vectorizer import VetorizadorBow
 from vectorizers.tfidf_vectorizer import VetorizadorTfidf
 from vectorizers.word2vec_vectorizer import VetorizadorWord2Vec
+from vectorizers.ctfidf_vectorizer import CalculadoraCTfIdf
 from similarity.cosine_search import MotorBuscaCosseno
 from visualization.tsne_plot import VisualizadorTSNE
+from visualization.wordcloud_ctfidf import gerar_grid_wordclouds_ctfidf
 
 logger = inicializar_sistema_log(__name__)
 
@@ -21,6 +23,7 @@ class PipelineEmbeddings:
         self.titulos_documentos = []
         self.documentos_tokenizados = []
         self._stopwords = frozenset()
+        self.ctfidf_por_categoria = {}
 
     def _carregar_e_preparar(self):
         logger.info("Carregando dados de: %s", self.caminho_parquet_entrada)
@@ -93,6 +96,9 @@ class PipelineEmbeddings:
                 self.motores_busca[metodo] = motor
                 self.vetorizadores[metodo] = vetorizador
 
+        if self.configuracoes.get("HABILITAR_CTFIDF", True) and "tfidf" in self.vetorizadores:
+            self._calcular_ctfidf()
+
         if self.configuracoes.get("HABILITAR_TSNE", False):
             self._executar_tsne()
 
@@ -111,6 +117,40 @@ class PipelineEmbeddings:
 
         logger.info("Treinamento concluido. %d search engines disponiveis.", len(self.motores_busca))
         return self.motores_busca
+
+    def _categorizar_titulo(self, titulo):
+        regras = self.configuracoes.get("REGRAS_CATEGORIAS", [])
+        categoria_padrao = self.configuracoes.get("CATEGORIA_PADRAO", "geral")
+        titulo_lower = titulo.lower()
+        for palavras_chave, categoria in regras:
+            if any(kw in titulo_lower for kw in palavras_chave):
+                return categoria
+        return categoria_padrao
+
+    def _calcular_ctfidf(self):
+        regras = self.configuracoes.get("REGRAS_CATEGORIAS", [])
+        if not regras:
+            logger.info("c-TF-IDF ignorado: REGRAS_CATEGORIAS vazio.")
+            return
+
+        categorias = [self._categorizar_titulo(t) for t in self.titulos_documentos]
+        categorias_unicas = set(categorias)
+
+        if len(categorias_unicas) < 2:
+            cat = next(iter(categorias_unicas), "nenhuma")
+            logger.info("c-TF-IDF ignorado: apenas 1 categoria unica ('%s').", cat)
+            return
+
+        logger.info("Calculando c-TF-IDF para %d categorias: %s",
+                    len(categorias_unicas), sorted(categorias_unicas))
+
+        calculadora = CalculadoraCTfIdf(self.vetorizadores["tfidf"])
+        self.ctfidf_por_categoria = calculadora.calcular(self.documentos, categorias)
+
+        caminho_saida = self.configuracoes.get("CAMINHO_SAIDA_WORDCLOUD_CTFIDF")
+        if caminho_saida:
+            os.makedirs(os.path.dirname(caminho_saida), exist_ok=True)
+            gerar_grid_wordclouds_ctfidf(self.ctfidf_por_categoria, caminho_saida)
 
     def _treinar_bow(self):
         params = self.configuracoes.get("PARAMS_BOW", {})

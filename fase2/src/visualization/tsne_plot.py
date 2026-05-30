@@ -9,15 +9,17 @@ logger = inicializar_sistema_log(__name__)
 
 
 class VisualizadorTSNE:
-    def __init__(self, n_components=2, perplexity=5, n_iter=1000, random_state=42):
+    def __init__(self, n_components=2, perplexity=5, n_iter=1000, random_state=42, init="pca"):
         self.perplexity = perplexity
         self.n_iter = n_iter
         self.random_state = random_state
+        self.init = init
         self.tsne = TSNE(
             n_components=n_components,
             perplexity=perplexity,
             max_iter=n_iter,
             random_state=random_state,
+            init=init,
         )
 
     def fit_transform(self, embeddings):

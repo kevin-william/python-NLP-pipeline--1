@@ -55,3 +55,14 @@ class TestVetorizadorWord2Vec:
         w2v.fit([])
         vec = w2v.obter_vetor_sentenca(["teste"])
         assert np.all(vec == 0)
+
+    def test_workers_param_accepted(self):
+        w2v = VetorizadorWord2Vec(vector_size=5, workers=2, min_count=1, epochs=3, seed=0)
+        assert w2v.params["workers"] == 2
+        sentences = [["a", "b", "c"], ["d", "e", "f"]]
+        w2v.fit(sentences)
+        assert w2v.model is not None
+
+    def test_workers_default_is_one(self):
+        w2v = VetorizadorWord2Vec()
+        assert w2v.params["workers"] == 1

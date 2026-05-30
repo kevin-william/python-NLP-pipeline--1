@@ -14,6 +14,7 @@ CAMINHO_LOG = os.path.join(DIRETORIO_SAIDA, "nlp_1100-artigos_wikipedia-formatad
 CAMINHO_PARQUET_SAIDA = os.path.join(DIRETORIO_SAIDA, "1100-artigos_wikipedia-formatados-v001.parquet")
 CAMINHO_NUVEM_PALAVRAS = os.path.join(DIRETORIO_SAIDA, "1100-artigos_wikipedia-formatados-v001.png")
 CAMINHO_ANALISE_VOCABULARIO = os.path.join(DIRETORIO_SAIDA, "1100-artigos_wikipedia-formatados-v001.json")
+CAMINHO_TABELA_COMPARACAO = os.path.join(DIRETORIO_SAIDA, "1100-artigos_comparacao_stemming_lematizacao.csv")
 
 # CAMINHO_ENTRADA = os.path.join(DIRETORIO_BASE, "input", "artigos_wikipedia.txt")
 # DIRETORIO_SAIDA = os.path.join(DIRETORIO_BASE, "output")
@@ -31,6 +32,12 @@ MARCADOR_FIM_ARTIGO = "===== ARTICLE END ====="
 # Métodos de processamento de tokens: 'none', 'lemmatizacao', 'stemming'
 # Pode ser uma lista com um ou múltiplos valores para execução sequencial
 METODOS_PROCESSAMENTO_TOKENS = ['lemmatizacao','none']
+
+# Método de stemming padrão: 'snowball' (produção, português) ou 'porter' (disponível para fins didáticos)
+METODO_STEMMING = 'snowball'
+
+# Fonte das stopwords: 'spacy', 'nltk' ou 'ambas'
+FONTE_STOPWORDS = 'spacy'
 
 # Stopwords extras a serem adicionadas às stopwords padrão do spaCy
 STOPWORDS_EXTRAS = []

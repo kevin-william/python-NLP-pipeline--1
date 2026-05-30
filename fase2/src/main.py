@@ -17,6 +17,10 @@ from fase2_config import (
     PARAMS_TSNE,
     PARAMS_PLOT_TSNE,
     CAMINHO_SAIDA_TSNE,
+    HABILITAR_CTFIDF,
+    REGRAS_CATEGORIAS,
+    CATEGORIA_PADRAO,
+    CAMINHO_SAIDA_WORDCLOUD_CTFIDF,
 )
 from logger import inicializar_sistema_log
 from embedding_pipeline import PipelineEmbeddings
@@ -43,6 +47,10 @@ def executar_fase2_principal():
         "PARAMS_TSNE": PARAMS_TSNE,
         "PARAMS_PLOT_TSNE": PARAMS_PLOT_TSNE,
         "CAMINHO_SAIDA_TSNE": CAMINHO_SAIDA_TSNE,
+        "HABILITAR_CTFIDF": HABILITAR_CTFIDF,
+        "REGRAS_CATEGORIAS": REGRAS_CATEGORIAS,
+        "CATEGORIA_PADRAO": CATEGORIA_PADRAO,
+        "CAMINHO_SAIDA_WORDCLOUD_CTFIDF": CAMINHO_SAIDA_WORDCLOUD_CTFIDF,
     }
 
     pipeline = PipelineEmbeddings(configuracoes, CAMINHO_PARQUET_ENTRADA)

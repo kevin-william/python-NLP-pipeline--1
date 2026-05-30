@@ -117,7 +117,7 @@ A Fase 1 processa o corpus bruto e produz um DataFrame anotado com informações
 | **6. Comparativo de Frequência** | Plota as top-N palavras com/sem stopwords |
 | **7. WordCloud** | Gera nuvem de palavras a partir dos lemas filtrados |
 
-A pipeline é executada de forma **combinada**: para cada item em `METODOS_PROCESSAMENTO_TOKENS` × cada item em `TIPOS_TOKENIZACAO`, uma execução completa é realizada e os artefatos são salvos com sufixo `_{metodo}_{tipo}`.
+A pipeline é executada para **cada método** em `METODOS_PROCESSAMENTO_TOKENS`. Uma execução completa é realizada para cada método e os artefatos são salvos com sufixo `_{metodo}`.
 
 ### Como executar
 
@@ -137,7 +137,6 @@ MODELO_SPACY = "pt_core_news_lg"            # modelo spaCy a usar
 TAMANHO_LOTE = 5                             # artigos por lote (ajuste conforme RAM disponível)
 SEED_ALEATORIO = 42                          # reprodutibilidade
 METODOS_PROCESSAMENTO_TOKENS = ["lemmatizacao", "stemming", "none"]
-TIPOS_TOKENIZACAO = ['palavra']              # 'palavra', 'bigrama', 'trigrama'
 MINIMO_PALAVRAS_ARTIGO = 40                  # artigos com menos palavras são removidos
 STOPWORDS_EXTRAS = []                        # stopwords adicionais além das do spaCy
 
@@ -162,16 +161,16 @@ Esses parametros controlam a aparencia da nuvem de palavras da fase1 e sao aplic
 
 ### Output
 
-Todos os arquivos são salvos em `fase1/output/` com sufixo `_{metodo}_{tipo}` por combinação:
+Todos os arquivos são salvos em `fase1/output/` com sufixo `_{metodo}` por método:
 
 | Arquivo | Descrição |
 |---------|-----------|
-| `100-artigos_anotacao_lg_{metodo}_{tipo}.parquet` | DataFrame com uma linha por token/n-grama/sentença, incluindo coluna `tipo_tokenizacao` |
-| `wordcloud_{metodo}_{tipo}.png` | Nuvem de palavras gerada a partir dos lemas (sem stopwords) |
-| `pos_distribution_{metodo}_{tipo}.png` | Gráfico de barras com a distribuição das POS tags no corpus |
-| `freq_comparison_{metodo}_{tipo}.png` | Comparativo das palavras mais frequentes antes e depois da filtragem de stopwords |
-| `vocabulario_analise_{metodo}_{tipo}.json` | Métricas de vocabulário: total de tokens, tokens únicos, redução percentual após filtragem |
-| `nlp_pipeline.log` | Log completo de execução com timestamps |
+| `1100-artigos_wikipedia-formatados-v001_{metodo}.parquet` | DataFrame com uma linha por token, incluindo coluna `processado` |
+| `1100-artigos_wikipedia-formatados-v001_{metodo}.png` | Nuvem de palavras gerada a partir dos lemas (sem stopwords) |
+| `pos_distribution_{metodo}.png` | Gráfico de barras com a distribuição das POS tags no corpus |
+| `freq_comparison_{metodo}.png` | Comparativo das palavras mais frequentes antes e depois da filtragem de stopwords |
+| `1100-artigos_wikipedia-formatados-v001_{metodo}.json` | Métricas de vocabulário: total de tokens, tokens únicos, redução percentual após filtragem |
+| `nlp_1100-artigos_wikipedia-formatados-v001.log` | Log completo de execução com timestamps |
 
 ### Colunas do Parquet gerado
 

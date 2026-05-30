@@ -1,7 +1,9 @@
 ﻿import re
+import nltk
 import spacy
+import pandas as pd
 from nltk.stem import PorterStemmer, SnowballStemmer
-from fase1_config import MODELO_SPACY, STOPWORDS_EXTRAS
+from fase1_config import MODELO_SPACY, STOPWORDS_EXTRAS, FONTE_STOPWORDS
 from logger import inicializar_sistema_log
 
 logger = inicializar_sistema_log(__name__)
@@ -9,8 +11,24 @@ logger = inicializar_sistema_log(__name__)
 _stopwords_personalizadas = set()
 _instancia_nlp = None
 
+# _stemmer_porter: instância do Porter Stemmer disponível para fins didáticos.
+# A função aplicar_stemming() aceita metodo='porter' para usar este stemmer
+# em comparações com o Snowball (padrão em português).
 _stemmer_porter = PorterStemmer()
 _stemmer_snowball = SnowballStemmer(language="portuguese")
+
+
+def inicializar_nltk():
+    """
+    Realiza o download automático dos recursos NLTK necessários para este módulo:
+    - punkt e punkt_tab: tokenizadores de sentenças e palavras
+    - stopwords: corpus de stopwords multilíngue
+    """
+    for recurso in ('punkt', 'punkt_tab', 'stopwords'):
+        try:
+            nltk.download(recurso, quiet=True)
+        except Exception as exc:
+            logger.warning("Nao foi possivel baixar recurso NLTK '%s': %s", recurso, exc)
 
 
 def obter_instancia_nlp():
@@ -59,10 +77,47 @@ def aplicar_stemming(texto, metodo='snowball'):
     return _stemmer_snowball.stem(texto)
 
 
-def obter_stopwords():
+def obter_stopwords_nltk(idioma='portuguese'):
+    """
+    Retorna o conjunto de stopwords da biblioteca NLTK para o idioma especificado.
+
+    Args:
+        idioma: Nome do idioma aceito pelo NLTK (ex.: 'portuguese', 'english').
+
+    Returns:
+        Conjunto de stopwords como set de strings.
+    """
+    from nltk.corpus import stopwords as nltk_stopwords_corpus
+    return set(nltk_stopwords_corpus.words(idioma))
+
+
+def obter_stopwords(fonte=None):
+    """
+    Retorna o conjunto de stopwords para o idioma português.
+
+    Args:
+        fonte: Fonte das stopwords: 'spacy', 'nltk' ou 'ambas'.
+               Se None, usa FONTE_STOPWORDS da configuração.
+
+    Returns:
+        Conjunto de stopwords como set de strings.
+    """
+    if fonte is None:
+        fonte = FONTE_STOPWORDS
+
+    stopwords_extras = set(palavra.lower() for palavra in STOPWORDS_EXTRAS) | _stopwords_personalizadas
+
+    if fonte == 'nltk':
+        return obter_stopwords_nltk() | stopwords_extras
+
     nlp = obter_instancia_nlp()
-    stopwords_extras = set(palavra.lower() for palavra in STOPWORDS_EXTRAS)
-    return nlp.Defaults.stop_words | _stopwords_personalizadas | stopwords_extras
+    spacy_sw = nlp.Defaults.stop_words
+
+    if fonte == 'ambas':
+        return spacy_sw | obter_stopwords_nltk() | stopwords_extras
+
+    # padrão: 'spacy'
+    return spacy_sw | stopwords_extras
 
 
 def adicionar_stopwords_personalizadas(palavras):
@@ -114,6 +169,7 @@ def tokenizar_por_tipo(texto_artigo, metodo_processamento='none'):
             "eh_stopword": token.is_stop,
             "eh_pontuacao": token.is_punct,
             "eh_alfabetico": token.is_alpha,
+            "formato": token.shape_,
         })
     return {"tokens": tokens}
 
@@ -141,3 +197,86 @@ def remover_stopwords_dos_tokens(tokens):
         and not token["eh_pontuacao"]
     ]
     return tokens_filtrados
+
+
+# ---------------------------------------------------------------------------
+# Tokenizadores NLTK — funções de demonstração didática
+# Produzem listas de strings (sem enriquecimento linguístico do spaCy).
+# ---------------------------------------------------------------------------
+
+def tokenizar_sentencas(texto):
+    """
+    Tokeniza o texto em sentenças usando NLTK (sent_tokenize).
+    Função de demonstração didática — produz lista de strings.
+
+    Args:
+        texto: Texto de entrada.
+
+    Returns:
+        Lista de sentenças como strings.
+    """
+    from nltk.tokenize import sent_tokenize
+    return sent_tokenize(texto, language='portuguese')
+
+
+def tokenizar_palavras_nltk(texto):
+    """
+    Tokeniza o texto em palavras usando NLTK (word_tokenize).
+    Função de demonstração didática — produz lista de strings.
+
+    Args:
+        texto: Texto de entrada.
+
+    Returns:
+        Lista de tokens como strings.
+    """
+    from nltk.tokenize import word_tokenize
+    return word_tokenize(texto, language='portuguese')
+
+
+def tokenizar_casual(texto):
+    """
+    Tokeniza o texto de forma casual usando NLTK (casual_tokenize).
+    Adequado para textos informais, redes sociais e afins.
+    Função de demonstração didática — produz lista de strings.
+
+    Args:
+        texto: Texto de entrada.
+
+    Returns:
+        Lista de tokens como strings.
+    """
+    from nltk.tokenize import casual_tokenize
+    return casual_tokenize(texto)
+
+
+# ---------------------------------------------------------------------------
+# Tabela comparativa stemming vs lematização (padrão didático do professor)
+# ---------------------------------------------------------------------------
+
+def gerar_tabela_comparacao_stemming_lematizacao(texto):
+    """
+    Gera um DataFrame comparando stemming e lematização para cada palavra
+    alfabética do texto, seguindo o padrão didático do professor.
+
+    Colunas: palavra | stemming | lematização | classe_gramatical
+
+    Args:
+        texto: Texto de entrada a ser analisado.
+
+    Returns:
+        DataFrame pandas com as colunas acima.
+    """
+    nlp = obter_instancia_nlp()
+    doc = nlp(texto)
+    comparacao = []
+    for token in doc:
+        if token.is_alpha:
+            palavra = token.text.lower()
+            comparacao.append({
+                "palavra": palavra,
+                "stemming": _stemmer_snowball.stem(palavra),
+                "lematização": token.lemma_,
+                "classe_gramatical": token.pos_,
+            })
+    return pd.DataFrame(comparacao)

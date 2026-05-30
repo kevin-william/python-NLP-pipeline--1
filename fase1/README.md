@@ -7,9 +7,9 @@ Pipeline de processamento de linguagem natural para artigos da Wikipedia em port
 - **Carregamento de Corpus**: Leitura e parsing de artigos da Wikipedia com metadados (título, URL)
 - **Filtro de Tamanho**: Remove artigos com menos de `MINIMO_PALAVRAS_ARTIGO` palavras antes do processamento; o log registra quantos foram removidos
 - **Normalização Textual**: Etapa dedicada — lowercase, remoção de caracteres especiais e excesso de espaços (acentos preservados)
-- **Tokenização Flexível**: Suporte a três tipos configuráveis — `palavra`, `bigrama` e `trigrama`
+- **Tokenização por palavra**: Tokenização word-level com spaCy
 - **Métodos de Processamento**: Lematização (spaCy), stemming (Snowball/Porter) ou sem normalização
-- **Execução Combinada**: Pipeline rodada para cada combinação método × tipo de tokenização; artefatos separados por sufixo
+- **Execução por método**: Pipeline rodada para cada método em `METODOS_PROCESSAMENTO_TOKENS`; artefatos separados por sufixo
 - **POS Tagging**: Análise morfossintática completa com spaCy (`pt_core_news_lg`)
 - **NER**: Reconhecimento de entidades nomeadas
 - **Remoção de Stopwords**: Stopwords padrão do spaCy + customizadas em tempo de execução + extras via `STOPWORDS_EXTRAS`
@@ -74,10 +74,10 @@ python main.py
 Ao executar `main.py`, o pipeline produz:
 
 ### Parâmetros do Parquet gerado
-`output/100-artigos_anotacao_lg_{metodo}_{tipo}.parquet` — DataFrame contendo:
+`output/1100-artigos_wikipedia-formatados-v001_{metodo}.parquet` — DataFrame contendo:
 - `id_artigo`: ID único do artigo
-- `id_token`: Posição do token/n-grama/sentença no artigo
-- `token`: Texto do token original (ou n-grama/sentença completa)
+- `id_token`: Posição do token no artigo
+- `token`: Texto do token original
 - `pos`: POS tag (NOUN, VERB, ADJ...)
 - `tag`: Tag detalhada
 - `lema`: Lema do token
@@ -86,17 +86,16 @@ Ao executar `main.py`, o pipeline produz:
 - `token_cabeca`: Token cabeça na árvore de dependência
 - `entidade`: Entidade nomeada (se aplicável)
 - `rotulo_entidade`: Tipo da entidade (PER, LOC, ORG, etc.)
-- `tipo_tokenizacao`: Tipo usado nesta execução (`palavra`, `bigrama`, `trigrama`, `sentenca`)
 - `titulo`: Título do artigo
 - `url`: URL do artigo
 
 ### Visualizações
-- `wordcloud-100-artigos_{metodo}_{tipo}.png` — Nuvem de palavras
-- `pos_distribution_{metodo}_{tipo}.png` — Gráfico de barras com distribuição de POS tags
-- `freq_comparison_{metodo}_{tipo}.png` — Comparativo de frequência antes/depois da remoção de stopwords
+- `1100-artigos_wikipedia-formatados-v001_{metodo}.png` — Nuvem de palavras
+- `pos_distribution_{metodo}.png` — Gráfico de barras com distribuição de POS tags
+- `freq_comparison_{metodo}.png` — Comparativo de frequência antes/depois da remoção de stopwords
 
 ### Análise de Vocabulário
-`output/vocabulario_analise-100-artigos_{metodo}_{tipo}.json` — Métricas:
+`output/1100-artigos_wikipedia-formatados-v001_{metodo}.json` — Métricas:
 - `quantidade_vocabulario_bruto`: Total de palavras únicas (com stopwords)
 - `quantidade_vocabulario_filtrado`: Total de palavras únicas (sem stopwords)
 - `percentual_reducao_vocabulario`: Percentual de redução
@@ -112,13 +111,8 @@ MODELO_SPACY = "pt_core_news_lg"              # Modelo spaCy
 TAMANHO_LOTE = 5                               # Tamanho do lote de processamento
 SEED_ALEATORIO = 42                            # Semente para reprodutibilidade
 
-# Eixo 1: métodos de normalização do token
-METODOS_PROCESSAMENTO_TOKENS = ['lemmatizacao', 'stemming', 'none']
-
-# Eixo 2: tipos de tokenização
-# Valores possíveis: 'palavra', 'bigrama', 'trigrama'
-# Exemplo: ['palavra', 'bigrama'] gera uma execução completa para cada tipo
-TIPOS_TOKENIZACAO = ['palavra']
+# Métodos de normalização do token (execução sequencial)
+METODOS_PROCESSAMENTO_TOKENS = ['lemmatizacao', 'none']
 
 # Filtro: artigos com menos de N palavras são removidos antes do processamento
 MINIMO_PALAVRAS_ARTIGO = 40
@@ -140,7 +134,7 @@ SEMENTE_NUVEM_PALAVRAS = SEED_ALEATORIO        # layout reproduzivel
 Os parametros da WordCloud sao lidos automaticamente por `wordcloud_gen.py`.
 Quando voce quiser sobrescrever algo pontualmente via codigo, basta passar os argumentos na chamada de `gerar_nuvem_palavras(...)`; caso contrario, os valores acima sao usados como default.
 
-> A pipeline é executada para **cada combinação** `METODOS_PROCESSAMENTO_TOKENS` × `TIPOS_TOKENIZACAO`. Com `['lemmatizacao', 'stemming']` e `['palavra', 'bigrama']`, são geradas 4 execuções com artefatos separados.
+> A pipeline é executada para **cada método** em `METODOS_PROCESSAMENTO_TOKENS`. Com `['lemmatizacao', 'none']`, são geradas 2 execuções com artefatos separados.
 
 ## Testes
 
@@ -172,18 +166,17 @@ from pos_tagger import processar_lote_artigos
 artigos = carregar_artigos()
 artigos, removidos = filtrar_artigos_por_tamanho(artigos)  # remove artigos muito curtos
 
-# Tokenizar por tipo e processar com spaCy
+# Processar artigos com spaCy
 dataframe = processar_lote_artigos(
     artigos,
     metodo_processamento="lemmatizacao",
-    tipo_tokenizacao="bigrama",
 )
 
 # Inspecionar resultado
-print(dataframe[["token", "lema", "processado", "tipo_tokenizacao"]].head())
+print(dataframe[["token", "lema", "processado", "pos"]].head())
 
 # Salvar resultado
-dataframe.to_parquet("output/resultado_lemmatizacao_bigrama.parquet", index=False)
+dataframe.to_parquet("output/resultado_lemmatizacao.parquet", index=False)
 ```
 
 ## Notas

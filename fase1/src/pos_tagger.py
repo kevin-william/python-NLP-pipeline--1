@@ -23,7 +23,7 @@ def _extrair_entidade(token):
 
 
 def _construir_linha(id_artigo, id_token, texto, lema, processado, pos, tag,
-                     dep, cabeca, entidade, rotulo_entidade, tipo_tokenizacao, artigo):
+                     dep, cabeca, entidade, rotulo_entidade, tipo_tokenizacao, artigo, formato=""):
     """Monta o dicionário de uma linha do DataFrame final."""
     return {
         "id_artigo": id_artigo,
@@ -40,6 +40,7 @@ def _construir_linha(id_artigo, id_token, texto, lema, processado, pos, tag,
         "tipo_tokenizacao": tipo_tokenizacao,
         "titulo": artigo["titulo"],
         "url": artigo["url"],
+        "formato": formato,
     }
 
 
@@ -65,7 +66,7 @@ def _processar_palavras(id_artigo, artigo, documento, metodo_processamento,
             id_artigo, id_token, token.text, lema, processado,
             token.pos_, token.tag_, token.dep_,
             token.head.text if token.head else "",
-            entidade, rotulo_entidade, 'palavra', artigo,
+            entidade, rotulo_entidade, 'palavra', artigo, token.shape_,
         ))
         id_token += 1
     return linhas

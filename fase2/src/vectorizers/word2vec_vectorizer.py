@@ -6,13 +6,14 @@ logger = inicializar_sistema_log(__name__)
 
 
 class VetorizadorWord2Vec:
-    def __init__(self, vector_size=100, window=5, min_count=1, epochs=30, seed=42):
+    def __init__(self, vector_size=100, window=5, min_count=1, epochs=30, seed=42, workers=1):
         self.params = {
             "vector_size": vector_size,
             "window": window,
             "min_count": min_count,
             "epochs": epochs,
             "seed": seed,
+            "workers": workers,
         }
         self.model = None
         self.vector_size = vector_size
@@ -32,6 +33,7 @@ class VetorizadorWord2Vec:
             min_count=self.params["min_count"],
             epochs=self.params["epochs"],
             seed=self.params["seed"],
+            workers=self.params["workers"],
         )
         vocab_size = len(self.model.wv)
         logger.info("Word2Vec treinado: vocab_size=%d, vector_size=%d", vocab_size, self.vector_size)

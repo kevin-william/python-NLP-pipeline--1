@@ -31,3 +31,24 @@ class TestVetorizadorTfidf:
         tfidf = VetorizadorTfidf()
         matrix = tfidf.fit_transform(docs)
         assert matrix.data.min() >= 0.0
+
+    def test_stop_words_excludes_term(self):
+        docs = ["python e uma linguagem", "python java ruby"]
+        tfidf = VetorizadorTfidf(stop_words=["python"])
+        matrix = tfidf.fit_transform(docs)
+        features = list(tfidf.get_feature_names())
+        assert "python" not in features
+
+    def test_max_df_excludes_frequent_terms(self):
+        docs = ["python e bom", "python e rapido", "python e util"]
+        tfidf = VetorizadorTfidf(max_df=0.5)
+        tfidf.fit_transform(docs)
+        features = list(tfidf.get_feature_names())
+        assert "python" not in features
+
+    def test_max_df_default_keeps_frequent_terms(self):
+        docs = ["python e bom", "python e rapido"]
+        tfidf = VetorizadorTfidf(max_df=1.0)
+        tfidf.fit_transform(docs)
+        features = list(tfidf.get_feature_names())
+        assert "python" in features
