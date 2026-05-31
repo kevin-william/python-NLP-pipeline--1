@@ -1,15 +1,15 @@
-﻿"""
-Pipeline simplificado da Fase 4 â€” 7 etapas.
-Usa os 3 mÃ³dulos consolidados: extractor, normalizer, graph_builder.
+"""
+Pipeline simplificado da Fase 4 — 7 etapas.
+Usa os 3 módulos consolidados: extractor, normalizer, graph_builder.
 
 Etapas:
 1. Carregar corpus (parquet Fase 1 + artefato Fase 2)
-2. ExtraÃ§Ã£o de entidades (NER spaCy)
-3. ExtraÃ§Ã£o de padrÃµes (Regex)
-4. ExtraÃ§Ã£o de relaÃ§Ãµes (SVO)
-5. NormalizaÃ§Ã£o de entidades (Levenshtein)
-6. ConstruÃ§Ã£o do grafo + centralidade
-7. VisualizaÃ§Ãµes + exportaÃ§Ã£o de resultados
+2. Extração de entidades (NER spaCy)
+3. Extração de padrões (Regex)
+4. Extração de relações (SVO)
+5. Normalização de entidades (Levenshtein)
+6. Construção do grafo + centralidade
+7. Visualizações + exportação de resultados
 """
 
 from __future__ import annotations
@@ -31,7 +31,7 @@ from normalizer import EntityNormalizer
 
 
 def _setup_logging(log_path: str) -> logging.Logger:
-    """Configura logging bÃ¡sico com saÃ­da para arquivo e console."""
+    """Configura logging básico com saída para arquivo e console."""
     lg = logging.getLogger("fase4")
     if not lg.handlers:
         d = os.path.dirname(log_path)
@@ -63,7 +63,7 @@ def _carregar_parquet(caminho: str):
 
 
 def _carregar_corpus(caminho_parquet: str, caminho_artefato: str):
-    """Carrega documentos do artefato Fase 2 ou reconstrÃ³i do parquet."""
+    """Carrega documentos do artefato Fase 2 ou reconstrói do parquet."""
     parquet_df = _carregar_parquet(caminho_parquet)
 
     documentos = None
@@ -99,7 +99,7 @@ def _carregar_corpus(caminho_parquet: str, caminho_artefato: str):
 
 
 def executar_fase4_principal() -> Dict[str, Any]:
-    # Re-importa dentro da funÃ§Ã£o para que monkeypatches de testes sejam visÃ­veis
+    # Re-importa dentro da função para que monkeypatches de testes sejam visíveis
     from fase4_config import (
         CAMINHO_ARTEFATO_FASE2 as artefato_path,
         CAMINHO_LOG as log_path,
@@ -111,7 +111,7 @@ def executar_fase4_principal() -> Dict[str, Any]:
     logger = _setup_logging(log_path)
     t0 = time.time()
     logger.info("=" * 60)
-    logger.info("FASE 4 â€” Pipeline Simplificado (7 etapas)")
+    logger.info("FASE 4 — Pipeline Simplificado (7 etapas)")
     logger.info("Inicio: %s", time.strftime("%Y-%m-%d %H:%M:%S"))
     logger.info("=" * 60)
 
@@ -128,7 +128,7 @@ def executar_fase4_principal() -> Dict[str, Any]:
     logger.info("Corpus: %d documentos", len(documentos))
 
     # ------------------------------------------------------------------
-    # ETAPAS 2-4: ExtraÃ§Ã£o (NER + Regex + SVO)
+    # ETAPAS 2-4: Extração (NER + Regex + SVO)
     # ------------------------------------------------------------------
     logger.info("[Etapas 2-4] Extracao de entidades, padroes e relacoes...")
     extractor = TextExtractor()
@@ -147,7 +147,7 @@ def executar_fase4_principal() -> Dict[str, Any]:
     saidas["relacoes_extraidas"]  = os.path.join(output_dir, "relacoes_extraidas.csv")
 
     # ------------------------------------------------------------------
-    # ETAPA 5: NormalizaÃ§Ã£o (Levenshtein)
+    # ETAPA 5: Normalização (Levenshtein)
     # ------------------------------------------------------------------
     logger.info("[Etapa 5] Normalizando entidades (Levenshtein)...")
     normalizer = EntityNormalizer()
@@ -159,7 +159,7 @@ def executar_fase4_principal() -> Dict[str, Any]:
         mapa   = normalizer.get_canonical_mapping(grupos)
         s_norm = normalizer.get_normalization_stats(entidades_unicas, grupos)
         logger.info(
-            "Normalizacao: %d â†’ %d canonicas (reducao %.1f%%)",
+            "Normalizacao: %d → %d canonicas (reducao %.1f%%)",
             s_norm["total_original"],
             s_norm["total_canonical"],
             s_norm["reduction_rate"] * 100,
@@ -195,7 +195,7 @@ def executar_fase4_principal() -> Dict[str, Any]:
     saidas["grafo_edges_csv"]  = arestas_csv
 
     # ------------------------------------------------------------------
-    # ETAPA 7: VisualizaÃ§Ãµes + exportaÃ§Ã£o final
+    # ETAPA 7: Visualizações + exportação final
     # ------------------------------------------------------------------
     logger.info("[Etapa 7] Gerando visualizacoes e exportando resultados...")
     graph.generate_all_plots(df_normalized, plots_dir)
@@ -223,7 +223,7 @@ def executar_fase4_principal() -> Dict[str, Any]:
     saidas["resultados_json"] = caminho_json
 
     relatorio_linhas = [
-        "=== RELATORIO INTERPRETATIVO â€” FASE 4 ===\n",
+        "=== RELATORIO INTERPRETATIVO — FASE 4 ===\n",
         f"Corpus: {len(documentos)} documentos analisados.",
         f"Entidades extraidas: {stats['entidades']}",
         f"Relacoes extraidas: {stats['relacoes']}",
@@ -238,7 +238,7 @@ def executar_fase4_principal() -> Dict[str, Any]:
         relatorio_linhas.append("Top entidades por betweenness centrality:")
         for n, v in top10:
             grau = graph.graph.degree(n)
-            relatorio_linhas.append(f"  {n} â€” betweenness={v:.4f}, grau={grau}")
+            relatorio_linhas.append(f"  {n} — betweenness={v:.4f}, grau={grau}")
         relatorio_linhas += [
             "",
             "Essas entidades conectam clusters tematicos distintos no corpus.",
