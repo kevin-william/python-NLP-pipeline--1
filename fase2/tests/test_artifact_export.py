@@ -41,6 +41,13 @@ def sample_parquet(tmp_path):
             "mineracao", "dados", "texto",
             "inteligencia", "artificial", "computador",
         ],
+        "processado": [
+            "aprendizado", "maquina", "algoritmo",
+            "redes", "neurais", "profundo",
+            "processamento", "linguagem", "natural",
+            "mineracao", "dados", "texto",
+            "inteligencia", "artificial", "computador",
+        ],
         "relacao_dependencia": ["nsubj"] * 15,
         "token_cabeca": [""] * 15,
         "entidade": [""] * 15,

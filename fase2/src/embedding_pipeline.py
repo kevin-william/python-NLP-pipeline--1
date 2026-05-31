@@ -42,14 +42,14 @@ class PipelineEmbeddings:
 
         for _id_artigo, grupo in agrupado:
             titulo = str(grupo["titulo"].iloc[0])
-            lemas = grupo["lema"].dropna()
+            tokens_coluna = grupo["processado"].dropna()
 
             tokens_filtrados = []
-            for indice, lema_serie in lemas.items():
-                lema = str(lema_serie).strip().lower()
+            for indice, token_serie in tokens_coluna.items():
+                token = str(token_serie).strip().lower()
                 pos = str(grupo.loc[indice, "pos"]) if indice in grupo.index else ""
 
-                if not lema:
+                if not token:
                     continue
 
                 if pos_permitidos:
@@ -58,10 +58,10 @@ class PipelineEmbeddings:
                 elif pos == "PUNCT":
                     continue
 
-                if habilitar_stopwords and lema in self._stopwords:
+                if habilitar_stopwords and token in self._stopwords:
                     continue
 
-                tokens_filtrados.append(lema)
+                tokens_filtrados.append(token)
 
             texto_documento = " ".join(tokens_filtrados)
             self.documentos.append(texto_documento)

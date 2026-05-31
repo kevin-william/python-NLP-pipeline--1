@@ -17,6 +17,7 @@ def sample_parquet(tmp_path):
         "pos": ["NOUN", "NOUN", "ADP", "PUNCT", "NOUN", "NOUN", "SCONJ", "NOUN", "NOUN", "NOUN", "ADP"],
         "tag": ["N", "N", "PP", "PU", "N", "N", "C", "N", "N", "N", "PP"],
         "lema": ["ola", "mundo", "de", "!", "python", "linguagem", "que", "processamento", "texto", "dados", "de"],
+        "processado": ["ola", "mundo", "de", "!", "python", "linguagem", "que", "processamento", "texto", "dados", "de"],
         "relacao_dependencia": ["nsubj", "obj", "case", "punct", "nsubj", "obj", "mark", "nsubj", "obj", "obj", "case"],
         "token_cabeca": ["", "", "", "", "", "", "", "", "", "", ""],
         "entidade": ["", "", "", "", "", "", "", "", "", "", ""],
