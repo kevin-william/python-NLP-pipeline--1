@@ -82,7 +82,7 @@ def _carregar_corpus(caminho_parquet: str, caminho_artefato: str):
             docs, titles = [], []
             for art_id in sorted(parquet_df["id_artigo"].unique()):
                 sub = parquet_df[parquet_df["id_artigo"] == art_id]
-                col = "lema" if "lema" in sub.columns else "token"
+                col = next((c for c in ("processado", "lema", "token") if c in sub.columns), "token")
                 docs.append(" ".join(sub[col].dropna().astype(str)))
                 titles.append(
                     sub["titulo"].iloc[0]

@@ -41,6 +41,7 @@ def _criar_parquet_sintetico(caminho: str):
                 "id_token": i,
                 "token": palavra,
                 "lema": palavra.lower(),
+                "processado": palavra.lower(),
                 "pos": "PROPN" if e else "NOUN",
                 "entidade": e,
                 "rotulo_entidade": r,

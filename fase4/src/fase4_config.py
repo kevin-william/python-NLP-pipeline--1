@@ -11,7 +11,7 @@ DIRETORIO_PLOTS = os.path.join(DIRETORIO_SAIDA, "plots")
 DIRETORIO_DISPLACY = os.path.join(DIRETORIO_SAIDA, "displacy")
 CAMINHO_LOG = os.path.join(DIRETORIO_SAIDA, "fase4_pipeline.log")
 
-# Parquet gerado pela Fase 1 (colunas: token, entidade, rotulo_entidade, lema, pos, id_artigo).
+# Parquet gerado pela Fase 1 (colunas: token, processado, lema, entidade, rotulo_entidade, pos, id_artigo, is_stop).
 _PARQUET_INPUT_LOCAL = os.path.join(DIRETORIO_INPUT, "1100-artigos_wikipedia-formatados-v001_lemmatizacao.parquet")
 _PARQUET_FASE1 = os.path.join(
     DIRETORIO_BASE, "..", "fase1", "output",
