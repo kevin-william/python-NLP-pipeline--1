@@ -46,7 +46,7 @@ STOPWORDS_EXTRAS = []
 # Tokenização exclusivamente por palavra nesta etapa
 
 # Filtro de tamanho mínimo: artigos com menos de N palavras são removidos antes do processamento
-MINIMO_PALAVRAS_ARTIGO = 40
+MINIMO_PALAVRAS_ARTIGO = 100
 
 # Habilita/desabilita a remocao de stopwords durante a geracao do parquet de saida.
 HABILITAR_REMOCAO_STOPWORDS = True

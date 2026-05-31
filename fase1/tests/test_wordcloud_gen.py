@@ -96,3 +96,84 @@ def test_gerar_nuvem_palavras_valida_parametros_invalidos():
 
     with pytest.raises(ValueError, match="maximo_palavras"):
         wordcloud_gen.gerar_nuvem_palavras(tokens, maximo_palavras=0)
+
+
+class _CapturarTextoWordCloud:
+    """WordCloud falso que captura o texto recebido por generate()."""
+    texto_recebido = None
+
+    def __init__(self, **kwargs):
+        pass
+
+    def generate(self, texto):
+        _CapturarTextoWordCloud.texto_recebido = texto
+        return self
+
+
+def test_incluir_stopwords_usa_campo_processado(monkeypatch, tmp_path):
+    """Com incluir_stopwords=True a nuvem deve usar o campo 'processado', não 'texto'."""
+    monkeypatch.setattr(wordcloud_gen, "WordCloud", _CapturarTextoWordCloud)
+    monkeypatch.setattr(wordcloud_gen, "obter_stopwords", lambda: set())
+    _desativar_plot(monkeypatch)
+
+    tokens = [
+        {"texto": "running", "processado": "correr"},
+        {"texto": "computed", "processado": "computar"},
+    ]
+    wordcloud_gen.gerar_nuvem_palavras(
+        tokens, incluir_stopwords=True, caminho_saida=str(tmp_path / "nuvem.png")
+    )
+
+    assert _CapturarTextoWordCloud.texto_recebido is not None
+    assert "correr" in _CapturarTextoWordCloud.texto_recebido
+    assert "computar" in _CapturarTextoWordCloud.texto_recebido
+    assert "running" not in _CapturarTextoWordCloud.texto_recebido
+    assert "computed" not in _CapturarTextoWordCloud.texto_recebido
+
+
+def test_incluir_stopwords_false_usa_campo_processado(monkeypatch, tmp_path):
+    """Com incluir_stopwords=False (padrão) a nuvem também deve usar 'processado'."""
+    monkeypatch.setattr(wordcloud_gen, "WordCloud", _CapturarTextoWordCloud)
+    monkeypatch.setattr(wordcloud_gen, "obter_stopwords", lambda: {"de"})
+    _desativar_plot(monkeypatch)
+
+    tokens = [
+        {"texto": "Banco", "processado": "banco"},
+        {"texto": "de", "processado": "de"},
+        {"texto": "Dados", "processado": "dado"},
+    ]
+    wordcloud_gen.gerar_nuvem_palavras(
+        tokens, incluir_stopwords=False, caminho_saida=str(tmp_path / "nuvem.png")
+    )
+
+    assert "banco" in _CapturarTextoWordCloud.texto_recebido
+    assert "dado" in _CapturarTextoWordCloud.texto_recebido
+    assert "de" not in _CapturarTextoWordCloud.texto_recebido
+
+
+def test_lemmatizacao_e_none_produzem_texto_diferente(monkeypatch, tmp_path):
+    """Tokens lemmatizados e originais devem gerar textos de nuvem distintos."""
+    monkeypatch.setattr(wordcloud_gen, "WordCloud", _CapturarTextoWordCloud)
+    monkeypatch.setattr(wordcloud_gen, "obter_stopwords", lambda: set())
+    _desativar_plot(monkeypatch)
+
+    tokens_lemmatizacao = [
+        {"texto": "correndo", "processado": "correr"},
+        {"texto": "pensamentos", "processado": "pensamento"},
+    ]
+    tokens_none = [
+        {"texto": "correndo", "processado": "correndo"},
+        {"texto": "pensamentos", "processado": "pensamentos"},
+    ]
+
+    wordcloud_gen.gerar_nuvem_palavras(
+        tokens_lemmatizacao, incluir_stopwords=True, caminho_saida=str(tmp_path / "lem.png")
+    )
+    texto_lemmatizacao = _CapturarTextoWordCloud.texto_recebido
+
+    wordcloud_gen.gerar_nuvem_palavras(
+        tokens_none, incluir_stopwords=True, caminho_saida=str(tmp_path / "none.png")
+    )
+    texto_none = _CapturarTextoWordCloud.texto_recebido
+
+    assert texto_lemmatizacao != texto_none

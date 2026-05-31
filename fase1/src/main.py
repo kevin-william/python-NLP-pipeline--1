@@ -13,6 +13,7 @@ from fase1_config import (
     CAMINHO_TABELA_COMPARACAO,
     DIRETORIO_SAIDA,
     METODOS_PROCESSAMENTO_TOKENS,
+    POS_TAGS_PERMITIDOS,
 )
 from logger import inicializar_sistema_log
 from corpus_loader import carregar_artigos, obter_estatisticas_corpus, filtrar_artigos_por_tamanho
@@ -46,12 +47,21 @@ def executar_pipeline_por_metodo(artigos, metodo):
     logger.info("METODO: %s", metodo)
     logger.info("=" * 60)
 
-    # Etapa 2: POS tagging com spaCy
+    # Etapa 2: POS tagging com spaCy — sem filtros internos para capturar todos os tokens
     logger.info("[ETAPA 2] POS Tagging com spaCy")
-    dataframe = processar_lote_artigos(artigos, metodo_processamento=metodo)
+    dataframe = processar_lote_artigos(
+        artigos,
+        metodo_processamento=metodo,
+        habilitar_stopwords=False,
+        pos_permitidos=[],
+    )
 
+    # Salvar parquet apenas com tokens de conteúdo (NOUN/VERB/ADJ/ADV, sem stopwords)
+    dataframe_parquet = dataframe[
+        dataframe["pos"].isin(POS_TAGS_PERMITIDOS) & ~dataframe["is_stop"]
+    ].copy()
     caminho_parquet = _construir_caminho_saida(CAMINHO_PARQUET_SAIDA, sufixo)
-    dataframe.to_parquet(caminho_parquet, index=False)
+    dataframe_parquet.to_parquet(caminho_parquet, index=False)
     logger.info("DataFrame salvo: %s (Parquet)", caminho_parquet)
 
     # Step 3: Remoção de stopwords + análise de vocabulário
@@ -69,7 +79,7 @@ def executar_pipeline_por_metodo(artigos, metodo):
     tokens_brutos_info = [
         {
             "texto": str(token.get("token", "")),
-            "lema": str(token.get("processado", token.get("lema", ""))),
+            "lema": str(token.get("lema", token.get("processado", ""))),
             "processado": str(token.get("processado", token.get("lema", token.get("token", "")))),
             "pos": str(token.get("pos", "")),
         }
@@ -78,7 +88,7 @@ def executar_pipeline_por_metodo(artigos, metodo):
     tokens_filtrados = [
         {
             "texto": str(token.get("token", "")),
-            "lema": str(token.get("processado", token.get("lema", ""))),
+            "lema": str(token.get("lema", token.get("processado", ""))),
             "processado": str(token.get("processado", token.get("lema", token.get("token", "")))),
             "pos": str(token.get("pos", "")),
         }
@@ -86,8 +96,8 @@ def executar_pipeline_por_metodo(artigos, metodo):
         if eh_nao_stopword(token)
     ]
 
-    contador_bruto = Counter(token["lema"].lower() for token in tokens_brutos_info if token["lema"].strip())
-    contador_filtrado = Counter(token["lema"].lower() for token in tokens_filtrados if token["lema"].strip())
+    contador_bruto = Counter(token["processado"].lower() for token in tokens_brutos_info if token["processado"].strip())
+    contador_filtrado = Counter(token["processado"].lower() for token in tokens_filtrados if token["processado"].strip())
 
     caminho_vocabulario = _construir_caminho_saida(
         CAMINHO_ANALISE_VOCABULARIO, sufixo
@@ -99,7 +109,7 @@ def executar_pipeline_por_metodo(artigos, metodo):
     caminho_saida_pos = _construir_caminho_saida(
         os.path.join(DIRETORIO_SAIDA, "pos_distribution.png"), sufixo
     )
-    plotar_distribuicao_pos(dataframe, caminho_saida=caminho_saida_pos)
+    plotar_distribuicao_pos(dataframe_parquet, caminho_saida=caminho_saida_pos)
 
     # Step 5: Gráfico comparativo de frequência
     logger.info("[ETAPA 5] Grafico comparativo de frequencia")

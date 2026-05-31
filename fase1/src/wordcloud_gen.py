@@ -105,7 +105,7 @@ def gerar_nuvem_palavras(
 
     if incluir_stopwords:
         texto_palavras = " ".join(
-            str(token.get("texto", token.get("text", ""))) for token in tokens
+            _obter_texto_token(token) for token in tokens if _obter_texto_token(token).strip()
         )
     else:
         stopwords_atuais = obter_stopwords()

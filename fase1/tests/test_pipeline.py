@@ -96,3 +96,57 @@ def test_filtro_minimo_remove_artigos_com_limiar_alto():
     assert len(removidos) > 0
     assert len(validos) + len(removidos) == len(artigos)
 
+
+# ---------------------------------------------------------------------------
+# Testes de tokens brutos vs filtrados (Bug #2 regression)
+# ---------------------------------------------------------------------------
+
+def test_tokens_brutos_contem_mais_tokens_que_filtrados():
+    """tokens_brutos_info deve incluir stopwords, portanto ter mais tokens que tokens_filtrados."""
+    artigos = carregar_artigos()
+    conteudo = artigos[0]["conteudo"]
+    resultado = tokenizar_artigo(conteudo, metodo_processamento='none')
+    todos_tokens = resultado["tokens"]
+    stopwords_atuais = obter_stopwords()
+
+    tokens_brutos = todos_tokens
+    tokens_filtrados = [
+        t for t in todos_tokens
+        if t.get("processado", t["texto"]).lower() not in stopwords_atuais
+        and not t["eh_pontuacao"]
+    ]
+
+    assert len(tokens_brutos) > len(tokens_filtrados), (
+        "tokens_brutos deve conter stopwords e ter mais tokens que tokens_filtrados"
+    )
+
+
+def test_tokens_brutos_contem_stopwords():
+    """tokens_brutos_info deve conter ao menos uma stopword do corpus."""
+    artigos = carregar_artigos()
+    conteudo = artigos[0]["conteudo"]
+    resultado = tokenizar_artigo(conteudo, metodo_processamento='none')
+    todos_tokens = resultado["tokens"]
+    stopwords_atuais = obter_stopwords()
+
+    stopwords_encontradas = [
+        t for t in todos_tokens
+        if t.get("processado", t["texto"]).lower() in stopwords_atuais
+    ]
+    assert len(stopwords_encontradas) > 0, "Corpus deve conter stopwords nos tokens brutos"
+
+
+def test_lemmatizacao_processado_difere_de_none():
+    """Campo 'processado' deve diferir entre os métodos lemmatizacao e none para o mesmo corpus."""
+    artigos = carregar_artigos()
+    conteudo = artigos[0]["conteudo"]
+
+    resultado_lem = tokenizar_artigo(conteudo, metodo_processamento='lemmatizacao')
+    resultado_none = tokenizar_artigo(conteudo, metodo_processamento='none')
+
+    processados_lem = {t["processado"] for t in resultado_lem["tokens"]}
+    processados_none = {t["processado"] for t in resultado_none["tokens"]}
+
+    assert processados_lem != processados_none, (
+        "O conjunto de tokens processados deve ser diferente entre lemmatizacao e none"
+    )
