@@ -1,23 +1,21 @@
-"""
-Pipeline principal da Fase 4 — Extracao de Informacoes e Grafo de Conhecimento.
+﻿"""
+Pipeline simplificado da Fase 4 â€” 7 etapas.
+Usa os 3 mÃ³dulos consolidados: extractor, normalizer, graph_builder.
 
-Executa as 11 etapas descritas no plan.md:
-1. Inicializacao
-2. Carregar dados
-3. Extracao de padroes com regex
-4. NER com spaCy (modelo pre-treinado)
-5. NER customizado
-6. Fuzzy matching
-7. Extracao de relacoes SVO
-8. Construcao do grafo
-9. Centralidade e comunidades
-10. Pergunta analitica e relatorio
-11. Visualizacoes
+Etapas:
+1. Carregar corpus (parquet Fase 1 + artefato Fase 2)
+2. ExtraÃ§Ã£o de entidades (NER spaCy)
+3. ExtraÃ§Ã£o de padrÃµes (Regex)
+4. ExtraÃ§Ã£o de relaÃ§Ãµes (SVO)
+5. NormalizaÃ§Ã£o de entidades (Levenshtein)
+6. ConstruÃ§Ã£o do grafo + centralidade
+7. VisualizaÃ§Ãµes + exportaÃ§Ã£o de resultados
 """
 
 from __future__ import annotations
 
 import json
+import logging
 import os
 import sys
 import time
@@ -27,26 +25,30 @@ DIRETORIO_SCRIPT = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, DIRETORIO_SCRIPT)
 sys.path.insert(0, os.path.join(DIRETORIO_SCRIPT, "..", "..", "shared"))
 
-from fase4_config import (
-    CAMINHO_ARTEFATO_FASE2,
-    CAMINHO_LOG,
-    CAMINHO_MODELO_CUSTOMIZADO,
-    CAMINHO_PARQUET_ENTRADA,
-    DIRETORIO_DISPLACY,
-    DIRETORIO_PLOTS,
-    DIRETORIO_SAIDA,
-    EPOCAS_TREINO_NER,
-    NUMERO_EXEMPLOS_TREINO,
-)
-from logger import inicializar_sistema_log
+from extractor import TextExtractor
+from graph_builder import KnowledgeGraphBuilder
+from normalizer import EntityNormalizer
 
-# Cria diretorios antes de inicializar logger (que tenta gravar em output/)
-os.makedirs(DIRETORIO_SAIDA, exist_ok=True)
-os.makedirs(DIRETORIO_PLOTS, exist_ok=True)
-os.makedirs(DIRETORIO_DISPLACY, exist_ok=True)
-os.makedirs(CAMINHO_MODELO_CUSTOMIZADO, exist_ok=True)
 
-logger = inicializar_sistema_log("fase4")
+def _setup_logging(log_path: str) -> logging.Logger:
+    """Configura logging bÃ¡sico com saÃ­da para arquivo e console."""
+    lg = logging.getLogger("fase4")
+    if not lg.handlers:
+        d = os.path.dirname(log_path)
+        if d:
+            os.makedirs(d, exist_ok=True)
+        fmt = logging.Formatter(
+            "[%(asctime)s] [%(levelname)s] %(message)s",
+            datefmt="%Y-%m-%d %H:%M:%S",
+        )
+        fh = logging.FileHandler(log_path, encoding="utf-8")
+        fh.setFormatter(fmt)
+        ch = logging.StreamHandler(sys.stdout)
+        ch.setFormatter(fmt)
+        lg.addHandler(fh)
+        lg.addHandler(ch)
+        lg.setLevel(logging.INFO)
+    return lg
 
 
 def _carregar_parquet(caminho: str):
@@ -60,336 +62,201 @@ def _carregar_parquet(caminho: str):
     return pd.read_parquet(caminho)
 
 
-def _carregar_artefato(caminho: str):
-    """Carrega artefato .lpf2 da Fase 2."""
-    if not os.path.exists(caminho):
-        return None
-    try:
-        import joblib
+def _carregar_corpus(caminho_parquet: str, caminho_artefato: str):
+    """Carrega documentos do artefato Fase 2 ou reconstrÃ³i do parquet."""
+    parquet_df = _carregar_parquet(caminho_parquet)
 
-        obj = joblib.load(caminho)
-        return obj
-    except Exception as e:
-        logger.warning("Falha ao carregar artefato Fase 2: %s", e)
-        return None
+    documentos = None
+    titulos = None
+    if os.path.exists(caminho_artefato):
+        try:
+            import joblib
+            artefato = joblib.load(caminho_artefato)
+            documentos = artefato.documentos
+            titulos = artefato.titulos
+        except Exception:
+            pass
 
+    if documentos is None:
+        if "id_artigo" in parquet_df.columns:
+            docs, titles = [], []
+            for art_id in sorted(parquet_df["id_artigo"].unique()):
+                sub = parquet_df[parquet_df["id_artigo"] == art_id]
+                col = "lema" if "lema" in sub.columns else "token"
+                docs.append(" ".join(sub[col].dropna().astype(str)))
+                titles.append(
+                    sub["titulo"].iloc[0]
+                    if "titulo" in sub.columns
+                    else f"Documento {art_id}"
+                )
+            documentos, titulos = docs, titles
+        else:
+            col = "token" if "token" in parquet_df.columns else parquet_df.columns[0]
+            documentos = [" ".join(parquet_df[col].dropna().astype(str))]
+            titulos = ["Documento 0"]
 
-def _reconstruir_documentos_do_parquet(df):
-    """Reconstroi textos concatenando tokens por id_artigo."""
-    import pandas as pd
-
-    if "id_artigo" not in df.columns:
-        col_token = "token" if "token" in df.columns else df.columns[0]
-        return [" ".join(df[col_token].dropna().astype(str).tolist())]
-
-    docs = []
-    for art_id in sorted(df["id_artigo"].unique()):
-        sub = df[df["id_artigo"] == art_id]
-        col = "lema" if "lema" in sub.columns else "token"
-        tokens = sub[col].dropna().astype(str).tolist()
-        docs.append(" ".join(tokens))
-    return docs
+    return parquet_df, documentos, titulos
 
 
 def executar_fase4_principal() -> Dict[str, Any]:
+    # Re-importa dentro da funÃ§Ã£o para que monkeypatches de testes sejam visÃ­veis
+    from fase4_config import (
+        CAMINHO_ARTEFATO_FASE2 as artefato_path,
+        CAMINHO_LOG as log_path,
+        CAMINHO_PARQUET_ENTRADA as parquet_path,
+        DIRETORIO_PLOTS as plots_dir,
+        DIRETORIO_SAIDA as output_dir,
+    )
+
+    logger = _setup_logging(log_path)
     t0 = time.time()
-    logger.info("=" * 70)
-    logger.info("FASE 4 — Extracao de Informacoes e Grafo de Conhecimento")
+    logger.info("=" * 60)
+    logger.info("FASE 4 â€” Pipeline Simplificado (7 etapas)")
     logger.info("Inicio: %s", time.strftime("%Y-%m-%d %H:%M:%S"))
-    logger.info("=" * 70)
+    logger.info("=" * 60)
+
+    os.makedirs(output_dir, exist_ok=True)
+    os.makedirs(plots_dir, exist_ok=True)
 
     saidas: Dict[str, Any] = {}
 
     # ------------------------------------------------------------------
-    # ETAPA 2: Carregar dados
+    # ETAPA 1: Carregar corpus
     # ------------------------------------------------------------------
-    logger.info("[Etapa 2] Carregando dados...")
-    parquet_df = _carregar_parquet(CAMINHO_PARQUET_ENTRADA)
-    logger.info("Parquet carregado: %d linhas, colunas: %s", len(parquet_df), list(parquet_df.columns))
-
-    artefato = _carregar_artefato(CAMINHO_ARTEFATO_FASE2)
-    if artefato is not None:
-        documentos = artefato.documentos
-        titulos = artefato.titulos
-        logger.info("Artefato Fase 2 carregado: %d documentos", len(documentos))
-    else:
-        logger.warning("Artefato Fase 2 ausente — reconstruindo documentos do parquet")
-        documentos = _reconstruir_documentos_do_parquet(parquet_df)
-        # Tenta obter titulos do parquet
-        if "titulo" in parquet_df.columns:
-            titulos = parquet_df.groupby("id_artigo")["titulo"].first().tolist() if "id_artigo" in parquet_df.columns else parquet_df["titulo"].drop_duplicates().tolist()
-        else:
-            titulos = [f"Documento {i}" for i in range(len(documentos))]
+    logger.info("[Etapa 1] Carregando corpus...")
+    parquet_df, documentos, titulos = _carregar_corpus(parquet_path, artefato_path)
+    logger.info("Corpus: %d documentos", len(documentos))
 
     # ------------------------------------------------------------------
-    # ETAPA 3: Extracao de padroes com regex
+    # ETAPAS 2-4: ExtraÃ§Ã£o (NER + Regex + SVO)
     # ------------------------------------------------------------------
-    logger.info("[Etapa 3] Extraindo padroes com regex...")
-    from extracao_padroes import extrair_padroes_corpus, gerar_estatisticas_padroes
+    logger.info("[Etapas 2-4] Extracao de entidades, padroes e relacoes...")
+    extractor = TextExtractor()
+    df_entities  = extractor.extract_entities_from_docs(documentos)
+    df_patterns  = extractor.extract_patterns_from_docs(documentos, titulos)
+    df_relations = extractor.extract_relations_from_docs(documentos)
 
-    df_padroes = extrair_padroes_corpus(documentos, titulos)
-    stats_padroes = gerar_estatisticas_padroes(df_padroes)
-    logger.info("Padroes extraidos: %d ocorrencias", len(df_padroes))
-    logger.info("Estatisticas:\n%s", stats_padroes.to_string(index=False))
-
-    # ------------------------------------------------------------------
-    # ETAPA 4: NER com spaCy (modelo pre-treinado)
-    # ------------------------------------------------------------------
-    logger.info("[Etapa 4] Executando NER com spaCy...")
-    from ner_analysis import (
-        carregar_modelo_spacy,
-        contar_entidades_por_tipo,
-        consolidar_entidades_parquet_spacy,
-        extrair_entidades_corpus,
-        gerar_displacy_corpus,
-    )
-
-    nlp = carregar_modelo_spacy()
-    df_ents_spacy = extrair_entidades_corpus(documentos, nlp)
-    logger.info("Entidades spaCy: %d", len(df_ents_spacy))
-
-    df_ents_consolidado = consolidar_entidades_parquet_spacy(df_ents_spacy, parquet_df)
-    logger.info("Entidades consolidadas: %d", len(df_ents_consolidado))
-    logger.info("Por tipo:\n%s", contar_entidades_por_tipo(df_ents_consolidado).to_string(index=False))
-
-    # displaCy
-    gerar_displacy_corpus(documentos, nlp, DIRETORIO_DISPLACY)
-
-    # Salva entidades extraidas
-    caminho_ents = os.path.join(DIRETORIO_SAIDA, "entidades_extraidas.csv")
-    df_ents_consolidado.to_csv(caminho_ents, index=False, encoding="utf-8")
-    saidas["entidades_extraidas"] = caminho_ents
-    logger.info("Entidades salvas: %s", caminho_ents)
-
-    # ------------------------------------------------------------------
-    # ETAPA 5: NER customizado
-    # ------------------------------------------------------------------
-    logger.info("[Etapa 5] Treinando NER customizado...")
-    from ner_customizado import (
-        avaliar_modelo_ner,
-        comparar_modelos,
-        converter_entidades_para_formato_treino,
-        exportar_metrica_ner,
-        treinar_ner_customizado,
-    )
-
-    dados_treino = converter_entidades_para_formato_treino(parquet_df, documentos)
-    n_treino = int(len(dados_treino) * 0.8)
-    dados_teste = dados_treino[n_treino:] if len(dados_treino) > 5 else dados_treino[:5]
-    dados_treino_real = dados_treino[:n_treino] if len(dados_treino) > 5 else dados_treino
-
-    modelo_custom = treinar_ner_customizado(dados_treino_real, epochs=EPOCAS_TREINO_NER)
-    metricas_ner = avaliar_modelo_ner(modelo_custom, dados_teste)
-    logger.info("Metricas NER customizado: %s", metricas_ner)
-
-    caminho_metricas_ner = os.path.join(CAMINHO_MODELO_CUSTOMIZADO, "metricas_avaliacao.json")
-    exportar_metrica_ner(metricas_ner, caminho_metricas_ner)
-
-    df_comparacao_ner = comparar_modelos(nlp, modelo_custom, documentos[:20])
-    caminho_comp_ner = os.path.join(CAMINHO_MODELO_CUSTOMIZADO, "comparacao_modelos.csv")
-    df_comparacao_ner.to_csv(caminho_comp_ner, index=False, encoding="utf-8")
-    saidas["metricas_ner"] = caminho_metricas_ner
-    saidas["comparacao_ner"] = caminho_comp_ner
-
-    # ------------------------------------------------------------------
-    # ETAPA 6: Fuzzy matching
-    # ------------------------------------------------------------------
-    logger.info("[Etapa 6] Aplicando fuzzy matching (Levenshtein)...")
-    from fuzzy_matching import normalizar_entidades
-
-    entidades_unicas = df_ents_consolidado["texto"].dropna().unique().tolist()
-    logger.info("Entidades unicas para fuzzy: %d", len(entidades_unicas))
-
-    df_fuzzy = normalizar_entidades(entidades_unicas)
-    caminho_fuzzy = os.path.join(DIRETORIO_SAIDA, "fuzzy_matches.csv")
-    df_fuzzy.to_csv(caminho_fuzzy, index=False, encoding="utf-8")
-    saidas["fuzzy_matches"] = caminho_fuzzy
-    logger.info("Fuzzy matches: %d grupos", df_fuzzy["grupo_id"].nunique())
-
-    # Aplica canonicalizacao: substituir variantes por forma canonica
-    mapa_canonica = dict(
-        zip(df_fuzzy["entidade_original"], df_fuzzy["entidade_canonica"])
-    )
-    df_ents_norm = df_ents_consolidado.copy()
-    df_ents_norm["texto"] = df_ents_norm["texto"].map(
-        lambda x: mapa_canonica.get(x, x)
-    )
-
-    # ------------------------------------------------------------------
-    # ETAPA 7: Extracao de relacoes SVO
-    # ------------------------------------------------------------------
-    logger.info("[Etapa 7] Extraindo relacoes SVO...")
-    from relacoes import (
-        construir_arestas_grafo,
-        extrair_relacoes_corpus,
-        filtrar_relacoes_relevantes,
-    )
-
-    df_relacoes = extrair_relacoes_corpus(documentos, nlp)
-    logger.info("Relacoes extraidas: %d", len(df_relacoes))
-
-    df_arestas = construir_arestas_grafo(df_relacoes)
-    df_arestas_filtradas = filtrar_relacoes_relevantes(df_arestas, min_freq=1)
-
-    caminho_relacoes = os.path.join(DIRETORIO_SAIDA, "relacoes_extraidas.csv")
-    df_relacoes.to_csv(caminho_relacoes, index=False, encoding="utf-8")
-    saidas["relacoes_extraidas"] = caminho_relacoes
-    logger.info("Relacoes salvas: %s", caminho_relacoes)
-
-    # ------------------------------------------------------------------
-    # ETAPA 8: Construcao do grafo
-    # ------------------------------------------------------------------
-    logger.info("[Etapa 8] Construindo grafo de conhecimento...")
-    from grafo_conhecimento import GrafoConhecimento
-
-    gc = GrafoConhecimento()
-    gc.construir_grafo_entidade_entidade(df_arestas_filtradas)
-    gc.adicionar_nos_entidades(df_ents_norm)
-
+    stats = extractor.get_statistics()
     logger.info(
-        "Grafo: %d nos | %d arestas",
-        gc.grafo.number_of_nodes(),
-        gc.grafo.number_of_edges(),
+        "Entidades: %d | Padroes: %d | Relacoes: %d",
+        stats["entidades"], stats["padroes"], stats["relacoes"],
     )
 
-    # ------------------------------------------------------------------
-    # ETAPA 9: Centralidade e comunidades
-    # ------------------------------------------------------------------
-    logger.info("[Etapa 9] Calculando centralidade e detectando comunidades...")
-    centralidade = gc.calcular_centralidade()
-    comunidades = gc.detectar_comunidades()
-    logger.info("Comunidades: %d", len(comunidades))
-
-    ranking = gc.obter_ranking_consolidado()
-    logger.info("Top entidades (ranking consolidado):\n%s", ranking.to_string(index=False))
-
-    arestas_freq = gc.obter_arestas_mais_frequentes()
+    extractor.export_to_csv(df_entities, df_patterns, df_relations, output_dir)
+    saidas["entidades_extraidas"] = os.path.join(output_dir, "entidades_extraidas.csv")
+    saidas["relacoes_extraidas"]  = os.path.join(output_dir, "relacoes_extraidas.csv")
 
     # ------------------------------------------------------------------
-    # ETAPA 10: Pergunta analitica e relatorio interpretativo
+    # ETAPA 5: NormalizaÃ§Ã£o (Levenshtein)
     # ------------------------------------------------------------------
-    logger.info("[Etapa 10] Gerando relatorio interpretativo...")
-    resposta = gc.responder_pergunta_analitica()
-    resumo = gc.gerar_resumo_interpretativo(centralidade, arestas_freq)
+    logger.info("[Etapa 5] Normalizando entidades (Levenshtein)...")
+    normalizer = EntityNormalizer()
+    df_normalized = normalizer.normalize_by_type(df_entities)
 
-    relatorio = "\n\n".join([resposta, resumo])
-    caminho_relatorio = os.path.join(DIRETORIO_SAIDA, "relatorio_interpretativo.txt")
-    with open(caminho_relatorio, "w", encoding="utf-8") as fh:
-        fh.write(relatorio)
-    saidas["relatorio_interpretativo"] = caminho_relatorio
-    logger.info("Relatorio salvo: %s", caminho_relatorio)
-    logger.info("\n%s", resposta)
+    if not df_entities.empty:
+        entidades_unicas = df_entities["text"].dropna().unique().tolist()
+        grupos = normalizer.normalize_entities(entidades_unicas)
+        mapa   = normalizer.get_canonical_mapping(grupos)
+        s_norm = normalizer.get_normalization_stats(entidades_unicas, grupos)
+        logger.info(
+            "Normalizacao: %d â†’ %d canonicas (reducao %.1f%%)",
+            s_norm["total_original"],
+            s_norm["total_canonical"],
+            s_norm["reduction_rate"] * 100,
+        )
+        normalizer.export_mapping(mapa, os.path.join(output_dir, "fuzzy_matches.csv"))
+    saidas["fuzzy_matches"] = os.path.join(output_dir, "fuzzy_matches.csv")
 
     # ------------------------------------------------------------------
-    # ETAPA 11: Visualizacoes
+    # ETAPA 6: Grafo + centralidade
     # ------------------------------------------------------------------
-    logger.info("[Etapa 11] Gerando visualizacoes...")
-    from visualizacao_grafo import (
-        gerar_infografico_resumo,
-        plotar_comparacao_centralidades,
-        plotar_comunidades_grafo,
-        plotar_distribuicao_centralidade,
-        plotar_frequencia_entidades,
-        plotar_grafo_matplotlib,
-        plotar_grafo_pyvis,
-        plotar_heatmap_relacoes,
-        plotar_top_entidades_por_tipo,
+    logger.info("[Etapa 6] Construindo grafo de conhecimento...")
+    graph = KnowledgeGraphBuilder()
+    graph.build_from_dataframes(df_relations, df_normalized)
+
+    centralidade = graph.calculate_centrality()
+    stats_grafo  = graph.get_graph_stats()
+    logger.info(
+        "Grafo: %d nos | %d arestas | densidade %.4f",
+        stats_grafo["nodes"], stats_grafo["edges"], stats_grafo["density"],
     )
 
-    # Grafo estatico
-    caminho_grafo_png = os.path.join(DIRETORIO_PLOTS, "grafo_conhecimento.png")
-    plotar_grafo_matplotlib(gc.grafo, centralidade, caminho_grafo_png)
-    saidas["grafo_conhecimento_png"] = caminho_grafo_png
+    top10 = graph.get_top_nodes("betweenness", top_n=10)
+    if top10:
+        logger.info(
+            "Top entidades (betweenness): %s",
+            ", ".join(f"{n}({v:.3f})" for n, v in top10[:5]),
+        )
 
-    # Grafo interativo
-    caminho_grafo_html = os.path.join(DIRETORIO_PLOTS, "grafo_interativo.html")
-    plotar_grafo_pyvis(gc.grafo, centralidade, caminho_grafo_html)
-    saidas["grafo_interativo_html"] = caminho_grafo_html
+    nos_csv    = os.path.join(output_dir, "nos_grafo.csv")
+    arestas_csv = os.path.join(output_dir, "relacoes_grafo.csv")
+    graph.export_csv(nos_csv, arestas_csv)
+    saidas["nos_grafo_csv"]    = nos_csv
+    saidas["grafo_edges_csv"]  = arestas_csv
 
-    # Distribuicao de centralidade
-    caminho_centralidade = os.path.join(DIRETORIO_PLOTS, "centralidade_entidades.png")
-    df_bet = centralidade.get("betweenness", centralidade.get("degree", None))
-    if df_bet is not None and not df_bet.empty:
-        plotar_distribuicao_centralidade(df_bet, "betweenness", caminho_centralidade)
-    saidas["centralidade_png"] = caminho_centralidade
+    # ------------------------------------------------------------------
+    # ETAPA 7: VisualizaÃ§Ãµes + exportaÃ§Ã£o final
+    # ------------------------------------------------------------------
+    logger.info("[Etapa 7] Gerando visualizacoes e exportando resultados...")
+    graph.generate_all_plots(df_normalized, plots_dir)
 
-    # Comparacao de centralidades
-    caminho_comp = os.path.join(DIRETORIO_PLOTS, "comparacao_centralidades.png")
-    plotar_comparacao_centralidades(centralidade, caminho_comp)
-    saidas["comparacao_centralidades_png"] = caminho_comp
-
-    # Top entidades por tipo
-    caminho_top_tipos = os.path.join(DIRETORIO_PLOTS, "top_entidades_por_tipo.png")
-    plotar_top_entidades_por_tipo(df_ents_norm, caminho_top_tipos)
-    saidas["top_entidades_tipo_png"] = caminho_top_tipos
-
-    # Frequencia
-    caminho_freq = os.path.join(DIRETORIO_PLOTS, "frequencia_entidades.png")
-    plotar_frequencia_entidades(df_ents_norm, caminho_freq)
-    saidas["frequencia_entidades_png"] = caminho_freq
-
-    # Heatmap
-    caminho_heatmap = os.path.join(DIRETORIO_PLOTS, "heatmap_relacoes.png")
-    plotar_heatmap_relacoes(df_arestas_filtradas, caminho_heatmap)
-    saidas["heatmap_relacoes_png"] = caminho_heatmap
-
-    # Comunidades
-    caminho_comunidades = os.path.join(DIRETORIO_PLOTS, "comunidades_grafo.png")
-    plotar_comunidades_grafo(gc.grafo, comunidades, caminho_comunidades)
-    saidas["comunidades_grafo_png"] = caminho_comunidades
-
-    # Infografico resumo
-    caminho_infografico = os.path.join(DIRETORIO_PLOTS, "infografico_resumo.png")
-    gerar_infografico_resumo(gc.grafo, centralidade, df_ents_norm, resposta, caminho_infografico)
-    saidas["infografico_resumo_png"] = caminho_infografico
-
-    # Exporta CSVs do grafo
-    caminho_edges_csv = os.path.join(DIRETORIO_SAIDA, "grafo_edges.csv")
-    caminho_nos_csv = os.path.join(DIRETORIO_SAIDA, "nos_grafo.csv")
-    gc.exportar_grafo(caminho_edges_csv, caminho_nos_csv)
-    saidas["grafo_edges_csv"] = caminho_edges_csv
-    saidas["nos_grafo_csv"] = caminho_nos_csv
-
-    # Resumo de metricas JSON
-    import networkx as nx
-
-    metricas_resumo = {
-        "nos": gc.grafo.number_of_nodes(),
-        "arestas": gc.grafo.number_of_edges(),
-        "densidade": nx.density(gc.grafo) if gc.grafo.number_of_nodes() > 1 else 0.0,
-        "componentes": nx.number_connected_components(gc.grafo),
-        "comunidades": len(comunidades),
-        "total_entidades_extraidas": len(df_ents_consolidado),
-        "total_relacoes_extraidas": len(df_relacoes),
-        "total_padroes_regex": len(df_padroes),
-        "metricas_ner": metricas_ner,
+    resultados = {
+        "corpus":  {"documentos": len(documentos)},
+        "extracao": stats,
+        "grafo":   stats_grafo,
+        "top_entidades": [
+            {"entidade": n, "betweenness": round(v, 6)} for n, v in top10
+        ],
+        "pergunta_analitica": (
+            "Quais entidades sao mais centrais no corpus e por que?"
+        ),
+        "resposta": (
+            f"As entidades mais centrais por betweenness sao: "
+            f"{', '.join(n for n, _ in top10[:3])}. "
+            "Essas entidades conectam clusters tematicos distintos, "
+            "aparecendo em multiplos contextos ao longo do corpus."
+        ) if top10 else "Dados insuficientes para analise.",
     }
-    if gc.grafo.number_of_nodes() > 0:
-        try:
-            if nx.is_connected(gc.grafo):
-                metricas_resumo["diametro"] = nx.diameter(gc.grafo)
-                metricas_resumo["clustering_medio"] = nx.average_clustering(gc.grafo)
-        except Exception:
-            pass
+    caminho_json = os.path.join(output_dir, "resultados.json")
+    with open(caminho_json, "w", encoding="utf-8") as fh:
+        json.dump(resultados, fh, ensure_ascii=False, indent=2, default=str)
+    saidas["resultados_json"] = caminho_json
 
-    caminho_metricas_json = os.path.join(DIRETORIO_SAIDA, "resumo_metricas.json")
-    with open(caminho_metricas_json, "w", encoding="utf-8") as fh:
-        json.dump(metricas_resumo, fh, ensure_ascii=False, indent=2)
-    saidas["resumo_metricas_json"] = caminho_metricas_json
+    relatorio_linhas = [
+        "=== RELATORIO INTERPRETATIVO â€” FASE 4 ===\n",
+        f"Corpus: {len(documentos)} documentos analisados.",
+        f"Entidades extraidas: {stats['entidades']}",
+        f"Relacoes extraidas: {stats['relacoes']}",
+        f"Grafo: {stats_grafo['nodes']} nos, {stats_grafo['edges']} arestas",
+        f"Densidade da rede: {stats_grafo['density']:.4f}",
+        "",
+        "=== PERGUNTA ANALITICA ===",
+        "Quais entidades sao mais centrais no corpus e por que?",
+        "",
+    ]
+    if top10:
+        relatorio_linhas.append("Top entidades por betweenness centrality:")
+        for n, v in top10:
+            grau = graph.graph.degree(n)
+            relatorio_linhas.append(f"  {n} â€” betweenness={v:.4f}, grau={grau}")
+        relatorio_linhas += [
+            "",
+            "Essas entidades conectam clusters tematicos distintos no corpus.",
+            "Entidades com alta centralidade de intermediacao aparecem em multiplos",
+            "contextos, funcionando como 'hubs' da narrativa.",
+        ]
 
-    # ------------------------------------------------------------------
-    # Finalizacao
-    # ------------------------------------------------------------------
-    tempo_total = time.time() - t0
-    logger.info("=" * 70)
-    logger.info("FASE 4 CONCLUIDA em %.1f segundos", tempo_total)
-    logger.info("Saidas geradas:")
-    for nome, caminho in saidas.items():
-        logger.info("  %-40s %s", nome, caminho)
-    logger.info("=" * 70)
+    caminho_relatorio = os.path.join(output_dir, "relatorio_interpretativo.txt")
+    with open(caminho_relatorio, "w", encoding="utf-8") as fh:
+        fh.write("\n".join(relatorio_linhas))
+    saidas["relatorio_interpretativo"] = caminho_relatorio
 
+    elapsed = time.time() - t0
+    logger.info("Pipeline concluido em %.1f segundos.", elapsed)
+    logger.info("Outputs em: %s", output_dir)
     return saidas
 
 
 if __name__ == "__main__":
     executar_fase4_principal()
+
